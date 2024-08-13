@@ -104,7 +104,7 @@ cd EAGLE
 pip install -e .
 ```
 
-## Octo
+## Average Acceptance Length
 
 ### Llama-2
 
@@ -123,6 +123,26 @@ EAGLE-1
 
 total time in seconds: 519.3108916282654
 average accept length: 3.676884889602661
+```
+
+### Llama-3
+
+Baseline
+
+```
+/opt/bin/cuda-reserve.py --num-gpus 1 python -m eagle.evaluation.gen_baseline_answer_llama3chat --base-model-path "meta-llama/Meta-Llama-3-8B-Instruct" --ea-model-path "yuhuili/EAGLE-LLaMA3-Instruct-8B" --temperature 0.0
+
+total time in seconds: 978.0435125827789
+```
+
+EAGLE-1
+
+```
+/opt/bin/cuda-reserve.py --num-gpus 1 python -m eagle.evaluation.gen_ea_answer_llama3chat --base-model-path "meta-llama/Meta-Llama-3-8B-Instruct" --ea-model-path "yuhuili/EAGLE-LLaMA3-Instruct-8B" --temperature 0.0
+
+
+total time in seconds: 463.01745796203613
+average accept length: 2.7998197078704834
 ```
 
 ## EAGLE Weights
