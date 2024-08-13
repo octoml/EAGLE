@@ -8,7 +8,6 @@ import json
 import os
 script_dir = os.path.dirname(__file__)
 parent_dir = os.path.dirname(script_dir)
-#os.environ["CUDA_VISIBLE_DEVICES"] = "7"
 from accelerate.utils import set_seed
 set_seed(0)
 
@@ -21,7 +20,7 @@ from tqdm import tqdm
 from ..model.ea_model import EaModel
 from ..model.kv_cache import initialize_past_key_values
 from ..model.utils import *
-
+from ..model.choices import *
 
 
 def ea_forward(input_ids, model, tokenizer, tree_choices, logits_processor=None, max_steps=512):
@@ -64,48 +63,20 @@ def ea_forward(input_ids, model, tokenizer, tree_choices, logits_processor=None,
 
     input_len = input_ids.shape[1]
     reset_tree_mode(model)
-    tree_logits, logits, hidden_state, sample_token = initialize_tree(
-        input_ids, model, tree_buffers["tree_attn_mask"], past_key_values, logits_processor
-    )
+
+    outputs = model.base_model(input_ids, past_key_values=past_key_values, use_cache=True)
     new_token = 0
 
     for idx in range(max_steps):
-        candidates, cart_candidates_prob, tree_candidates = generate_candidates(
-            tree_logits,
-            tree_buffers["tree_indices"],
-            tree_buffers["retrieve_indices"],
-            sample_token,
-            logits_processor
-        )
-        logits, hidden_state_new, outputs = tree_decoding(
-            model,
-            tree_candidates,
-            past_key_values,
-            tree_buffers["tree_position_ids"],
-            input_ids,
-            tree_buffers["retrieve_indices_head"],
-        )
-        best_candidate, accept_length, sample_p = evaluate_posterior(
-            logits, candidates, logits_processor, cart_candidates_prob, tree_logits[2], tree_buffers["p_indices"],
-            tree_candidates, tree_buffers["b_indices"]
-        )
-        input_ids, tree_logits, new_token, hidden_state, sample_token = update_inference_inputs(
-            input_ids,
-            candidates,
-            best_candidate,
-            accept_length,
-            tree_buffers["retrieve_indices"],
-            logits_processor,
-            logits,
-            tree_logits,
-            new_token,
-            past_key_values_data,
-            current_length_data,
-            model,
-            hidden_state,
-            hidden_state_new,
-            sample_p
-        )
+        if logits_processor is not None:
+            logits = outputs.logits[:, -1]
+            logits = logits_processor(None, logits)
+            probabilities = torch.nn.functional.softmax(logits, dim=-1)
+            input_id = torch.multinomial(probabilities, 1)
+        else:
+            input_id = outputs.logits[:, -1:].argmax(dim=-1)
+        outputs = model.base_model(input_id, use_cache=True, past_key_values=past_key_values)
+        input_ids = torch.cat([input_ids, input_id], dim=-1)
 
         if stop_token_ids[0] in input_ids[0, input_len:].tolist():
             break
@@ -132,7 +103,7 @@ def run_eval(
         num_gpus_total,
         max_gpu_memory,
         temperature,
-        args
+        tree_choices,
 ):
     questions = load_questions(question_file, question_begin, question_end)
     # random shuffle the questions to balance the loading
@@ -167,7 +138,7 @@ def run_eval(
                 num_gpus_per_model,
                 max_gpu_memory,
                 temperature,
-                args
+                tree_choices,
             )
         )
 
@@ -187,17 +158,13 @@ def get_model_answers(
         num_gpus_per_model,
         max_gpu_memory,
         temperature,
-        args
+        tree_choices,
 ):
     # temperature = 0.0
 
     model = EaModel.from_pretrained(
         base_model_path=base_model_path,
         ea_model_path=ea_model_path,
-        total_token=args.total_token,
-        depth=args.depth,
-        top_k=args.top_k,
-        threshold=args.threshold,
         torch_dtype=torch.float16,
         low_cpu_mem_usage=True,
         # load_in_8bit=True,
@@ -248,11 +215,12 @@ def get_model_answers(
             torch.cuda.synchronize()
             start_time = time.time()
 
-            output_ids, new_token, idx = model.naivegenerate(
+            output_ids, new_token, idx = ea_forward(
                 torch.as_tensor(input_ids).cuda(),
-                temperature=temperature,
-                log=True,
-                is_llama3=True,
+                model,
+                tokenizer,
+                tree_choices,
+                logits_processor,
             )
             torch.cuda.synchronize()
             total_time = time.time() - start_time
@@ -286,7 +254,6 @@ def get_model_answers(
                 else:
                     output = output.replace(special_token, "")
             output = output.strip()
-
 
 
             turns.append(output)
@@ -327,48 +294,52 @@ def get_model_answers(
                 )
                 input_ids = tokenizer([prompt], add_special_tokens=False, ).input_ids
 
-                # try:
-                torch.cuda.synchronize()
-                start_time = time.time()
-
-                output_ids, new_token, idx = model.naivegenerate(
-                    torch.as_tensor(input_ids).cuda(),
-                    temperature=temperature,
-                    log=True,
-                    is_llama3=True,
-                )
-                torch.cuda.synchronize()
-                total_time = time.time() - start_time
-                output_ids = output_ids[0][len(input_ids[0]):]
-                # be consistent with the template's stop_token_ids
-                stop_token_ids = [
-                    tokenizer.eos_token_id,
-                    tokenizer.convert_tokens_to_ids("<|eot_id|>")
-                ]
-
-                if stop_token_ids:
-                    stop_token_ids_index = [
-                        i
-                        for i, id in enumerate(output_ids)
-                        if id in stop_token_ids
+                try:
+                    torch.cuda.synchronize()
+                    start_time = time.time()
+                    output_ids, new_token, idx = ea_forward(
+                        torch.as_tensor(input_ids).cuda(),
+                        model,
+                        tokenizer,
+                        tree_choices,
+                        logits_processor,
+                    )
+                    torch.cuda.synchronize()
+                    total_time = time.time() - start_time
+                    output_ids = output_ids[0][len(input_ids[0]):]
+                    # be consistent with the template's stop_token_ids
+                    stop_token_ids = [
+                        tokenizer.eos_token_id,
+                        tokenizer.convert_tokens_to_ids("<|eot_id|>")
                     ]
-                    if len(stop_token_ids_index) > 0:
-                        output_ids = output_ids[: stop_token_ids_index[0]]
 
-                output = tokenizer.decode(
-                    output_ids,
-                    spaces_between_special_tokens=False,
-                )
-                # stop_str = "</s>"
-                # if stop_str and output.find(stop_str) > 0:
-                #     output = output[: output.find(stop_str)]
-                for special_token in tokenizer.special_tokens_map.values():
-                    if isinstance(special_token, list):
-                        for special_tok in special_token:
-                            output = output.replace(special_tok, "")
-                    else:
-                        output = output.replace(special_token, "")
-                output = output.strip()
+                    if stop_token_ids:
+                        stop_token_ids_index = [
+                            i
+                            for i, id in enumerate(output_ids)
+                            if id in stop_token_ids
+                        ]
+                        if len(stop_token_ids_index) > 0:
+                            output_ids = output_ids[: stop_token_ids_index[0]]
+
+                    output = tokenizer.decode(
+                        output_ids,
+                        spaces_between_special_tokens=False,
+                    )
+                    # stop_str = "</s>"
+                    # if stop_str and output.find(stop_str) > 0:
+                    #     output = output[: output.find(stop_str)]
+                    for special_token in tokenizer.special_tokens_map.values():
+                        if isinstance(special_token, list):
+                            for special_tok in special_token:
+                                output = output.replace(special_tok, "")
+                        else:
+                            output = output.replace(special_token, "")
+                    output = output.strip()
+
+                except RuntimeError as e:
+                    print("ERROR question ID: ", question["question_id"])
+                    output = "ERROR"
 
                 turns.append(output)
                 idxs.append(int(idx))
@@ -414,15 +385,15 @@ if __name__ == "__main__":
     parser.add_argument(
         "--ea-model-path",
         type=str,
-        default="down_checkpoints/LC70B",
+        default="yuhuili/EAGLE-LLaMA3-Instruct-8B",
         help="The path to the weights. This can be a local folder or a Hugging Face repo ID.",
     )
-    parser.add_argument("--base-model-path", type=str, default="/home/lyh/weights/hf/llama2chat/70B/",
+    parser.add_argument("--base-model-path", type=str, default="meta-llama/Meta-Llama-3-8B-Instruct",
                         help="1")
     parser.add_argument(
         "--load-in-8bit", action="store_false", help="Use 8-bit quantization"
     )
-    parser.add_argument("--model-id", type=str, default="llama38b2_40")
+    parser.add_argument("--model-id", type=str, default="ess-llama-3-insruct-8b-fp16-baseline")
     parser.add_argument(
         "--bench-name",
         type=str,
@@ -442,30 +413,6 @@ if __name__ == "__main__":
         "--max-new-token",
         type=int,
         default=1024,
-        help="The maximum number of new generated tokens.",
-    )
-    parser.add_argument(
-        "--total-token",
-        type=int,
-        default=63,
-        help="The maximum number of new generated tokens.",
-    )
-    parser.add_argument(
-        "--depth",
-        type=int,
-        default=5,
-        help="The maximum number of new generated tokens.",
-    )
-    parser.add_argument(
-        "--top-k",
-        type=int,
-        default=8,
-        help="The maximum number of new generated tokens.",
-    )
-    parser.add_argument(
-        "--threshold",
-        type=float,
-        default=0.1,
         help="The maximum number of new generated tokens.",
     )
     parser.add_argument(
@@ -504,6 +451,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     args.model_id = args.model_id + "-temperature-" + str(args.temperature)
+    args.tree_choices = eval(args.tree_choices)
     if args.num_gpus_total // args.num_gpus_per_model > 1:
         import ray
 
@@ -530,8 +478,9 @@ if __name__ == "__main__":
         args.num_gpus_per_model,
         args.num_gpus_total,
         args.max_gpu_memory,
+
         args.temperature,
-        args
+        args.tree_choices,
     )
 
     reorg_answer_file(answer_file)
