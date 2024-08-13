@@ -8,20 +8,17 @@ import json
 import os
 script_dir = os.path.dirname(__file__)
 parent_dir = os.path.dirname(script_dir)
-#os.environ["CUDA_VISIBLE_DEVICES"] = "0,1,2,3,4,5,6,7"
 import time
-import shortuuid
-from tqdm import tqdm
 
+import shortuuid
 from fastchat.llm_judge.common import load_questions
 from fastchat.model import get_conversation_template
+from tqdm import tqdm
 
-#try:
-from model.utils import *
-from model.ea_model import EaModel
-from model.kv_cache import initialize_past_key_values
-from model.choices import *
-
+from ..model.ea_model import EaModel
+from ..model.kv_cache import initialize_past_key_values
+from ..model.utils import *
+from ..model.choices import *
 
 
 def ea_forward(input_ids, model, tokenizer, tree_choices, logits_processor=None, max_steps=512):
@@ -155,7 +152,7 @@ def get_model_answers(
         temperature,
         tree_choices,
 ):
-    #temperature = 0.0
+    # temperature = 0.0
 
     model = EaModel.from_pretrained(
         base_model_path=base_model_path,
@@ -184,6 +181,7 @@ def get_model_answers(
     # warmup
     for _ in range(3):
         torch.manual_seed(0)
+
         conv = get_conversation_template("llama-2-chat")
         sys_p = "You are a helpful, respectful and honest assistant. Always answer as helpfully as possible, while being safe.  Your answers should not include any harmful, unethical, racist, sexist, toxic, dangerous, or illegal content. Please ensure that your responses are socially unbiased and positive in nature.\n\nIf a question does not make any sense, or is not factually coherent, explain why instead of answering something not correct. If you don't know the answer to a question, please don't share false information."
         conv.system_message = sys_p
@@ -240,7 +238,6 @@ def get_model_answers(
             if conv.name == "xgen" and output.startswith("Assistant:"):
                 output = output.replace("Assistant:", "", 1).strip()
 
-
             turns.append(output)
             idxs.append(int(idx))
             new_tokens.append(int(new_token))
@@ -249,6 +246,7 @@ def get_model_answers(
     print('Warmup done')
 
     # questions=questions[6:]
+    overall_start_time = time.time()
     for question in tqdm(questions):
 
         choices = []
@@ -330,6 +328,7 @@ def get_model_answers(
                 "tstamp": time.time(),
             }
             fout.write(json.dumps(ans_json) + "\n")
+    print(f"total time in seconds: {time.time() - overall_start_time}")
 
 
 def reorg_answer_file(answer_file):
@@ -351,15 +350,15 @@ if __name__ == "__main__":
     parser.add_argument(
         "--ea-model-path",
         type=str,
-        default="down_checkpoints/LC70B",
+        default="yuhuili/EAGLE-llama2-chat-7B",
         help="The path to the weights. This can be a local folder or a Hugging Face repo ID.",
     )
-    parser.add_argument("--base-model-path", type=str, default="/home/lyh/weights/hf/llama2chat/70B/",
+    parser.add_argument("--base-model-path", type=str, default="meta-llama/Llama-2-7b-chat-hf",
                         help="1")
     parser.add_argument(
         "--load-in-8bit", action="store_false", help="Use 8-bit quantization"
     )
-    parser.add_argument("--model-id", type=str, default="ess-llama-2-chat-70b-fp16-baseline")
+    parser.add_argument("--model-id", type=str, default="ess-llama-2-chat-7b-fp16-baseline")
     parser.add_argument(
         "--bench-name",
         type=str,

@@ -10,8 +10,6 @@ script_dir = os.path.dirname(__file__)
 parent_dir = os.path.dirname(script_dir)
 from accelerate.utils import set_seed
 set_seed(0)
-# os.environ["CUDA_VISIBLE_DEVICES"] = "0,1,2,3,4,5,6,7"
-# os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 import time
 
 import shortuuid
@@ -19,10 +17,10 @@ from fastchat.llm_judge.common import load_questions
 from fastchat.model import get_conversation_template
 from tqdm import tqdm
 
-from model.ea_model import EaModel
-from model.kv_cache import initialize_past_key_values
-from model.utils_alpha import *
-from model.choices import *
+from ..model.ea_model import EaModel
+from ..model.kv_cache import initialize_past_key_values
+from ..model.utils_alpha import *
+from ..model.choices import *
 
 
 def ea_forward(input_ids, model, tokenizer, tree_choices, logits_processor=None, max_steps=512):
@@ -84,10 +82,12 @@ def ea_forward(input_ids, model, tokenizer, tree_choices, logits_processor=None,
             input_ids,
             tree_buffers["retrieve_indices"],
         )
-        best_candidate, accept_length,sample_p = evaluate_posterior(
-                logits, candidates, logits_processor, cart_candidates_prob,alpha,alpha_num,tree_logits[2], tree_buffers["p_indices"],
+        best_candidate, accept_length, sample_p = evaluate_posterior(
+                logits, candidates, logits_processor, cart_candidates_prob, alpha, alpha_num, tree_logits[2], tree_buffers["p_indices"],
             tree_candidates, tree_buffers["b_indices"]
-            )
+        )
+        model.total_inferences += 1
+        model.total_accept_length += accept_length + 1
         input_ids, tree_logits, new_token, hidden_state, sample_token = update_inference_inputs(
             input_ids,
             candidates,
@@ -279,6 +279,9 @@ def get_model_answers(
     print('Warmup done')
 
     # questions=questions[6:]
+    model.total_inferences = 0
+    model.total_accept_length = 0
+    overall_start_time = time.time()
     for question in tqdm(questions):
 
         choices = []
@@ -298,48 +301,48 @@ def get_model_answers(
                 prompt = conv.get_prompt() + " "
                 input_ids = tokenizer([prompt]).input_ids
 
-                #try:
-                torch.cuda.synchronize()
-                start_time = time.time()
-                output_ids, new_token, idx, alpha, alpha_num = ea_forward(
-                    torch.as_tensor(input_ids).cuda(),
-                    model,
-                    tokenizer,
-                    tree_choices,
-                    logits_processor,
-                )
-                torch.cuda.synchronize()
-                total_time = time.time() - start_time
-                output_ids = output_ids[0][len(input_ids[0]):]
+                try:
+                    torch.cuda.synchronize()
+                    start_time = time.time()
+                    output_ids, new_token, idx, alpha, alpha_num = ea_forward(
+                        torch.as_tensor(input_ids).cuda(),
+                        model,
+                        tokenizer,
+                        tree_choices,
+                        logits_processor,
+                    )
+                    torch.cuda.synchronize()
+                    total_time = time.time() - start_time
+                    output_ids = output_ids[0][len(input_ids[0]):]
 
-                if conv.stop_token_ids:
-                    stop_token_ids_index = [
-                        i
-                        for i, id in enumerate(output_ids)
-                        if id in conv.stop_token_ids
-                    ]
-                    if len(stop_token_ids_index) > 0:
-                        output_ids = output_ids[: stop_token_ids_index[0]]
+                    if conv.stop_token_ids:
+                        stop_token_ids_index = [
+                            i
+                            for i, id in enumerate(output_ids)
+                            if id in conv.stop_token_ids
+                        ]
+                        if len(stop_token_ids_index) > 0:
+                            output_ids = output_ids[: stop_token_ids_index[0]]
 
-                output = tokenizer.decode(
-                    output_ids,
-                    spaces_between_special_tokens=False,
-                )
-                if conv.stop_str and output.find(conv.stop_str) > 0:
-                    output = output[: output.find(conv.stop_str)]
-                for special_token in tokenizer.special_tokens_map.values():
-                    if isinstance(special_token, list):
-                        for special_tok in special_token:
-                            output = output.replace(special_tok, "")
-                    else:
-                        output = output.replace(special_token, "")
-                output = output.strip()
+                    output = tokenizer.decode(
+                        output_ids,
+                        spaces_between_special_tokens=False,
+                    )
+                    if conv.stop_str and output.find(conv.stop_str) > 0:
+                        output = output[: output.find(conv.stop_str)]
+                    for special_token in tokenizer.special_tokens_map.values():
+                        if isinstance(special_token, list):
+                            for special_tok in special_token:
+                                output = output.replace(special_tok, "")
+                        else:
+                            output = output.replace(special_token, "")
+                    output = output.strip()
 
-                if conv.name == "xgen" and output.startswith("Assistant:"):
-                    output = output.replace("Assistant:", "", 1).strip()
-                # except RuntimeError as e:
-                #     print("ERROR question ID: ", question["question_id"])
-                #     output = "ERROR"
+                    if conv.name == "xgen" and output.startswith("Assistant:"):
+                        output = output.replace("Assistant:", "", 1).strip()
+                except RuntimeError as e:
+                    print("ERROR question ID: ", question["question_id"])
+                    output = "ERROR"
 
                 turns.append(output)
                 idxs.append(int(idx))
@@ -361,6 +364,8 @@ def get_model_answers(
                 "tstamp": time.time(),
             }
             fout.write(json.dumps(ans_json) + "\n")
+    print(f"total time in seconds: {time.time() - overall_start_time}")
+    print(f"average accept length: {model.total_accept_length / model.total_inferences}")
 
 
 def reorg_answer_file(answer_file):
@@ -382,15 +387,15 @@ if __name__ == "__main__":
     parser.add_argument(
         "--ea-model-path",
         type=str,
-        default="/home/lyh/weights/hf/eagle/vicuna/7B/",
+        default="yuhuili/EAGLE-llama2-chat-7B",
         help="The path to the weights. This can be a local folder or a Hugging Face repo ID.",
     )
-    parser.add_argument("--base-model-path", type=str, default="/home/lyh/weights/hf/vicuna_v13/7B/",
+    parser.add_argument("--base-model-path", type=str, default="meta-llama/Llama-2-7b-chat-hf",
                         help="1")
     parser.add_argument(
         "--load-in-8bit", action="store_false", help="Use 8-bit quantization"
     )
-    parser.add_argument("--model-id", type=str, default="tmp")
+    parser.add_argument("--model-id", type=str, default="ess-llama-2-chat-7b-fp16")
     parser.add_argument(
         "--bench-name",
         type=str,

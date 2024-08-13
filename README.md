@@ -104,6 +104,26 @@ cd EAGLE
 pip install -e .
 ```
 
+## Octo
+
+### Llama-2
+
+Baseline
+
+```
+/opt/bin/cuda-reserve.py --num-gpus 1 python -m eagle.evaluation.gen_baseline_answer_llama2chat --base-model-path "meta-llama/Llama-2-7b-chat-hf" --ea-model-path "yuhuili/EAGLE-llama2-chat-7B" --temperature 0.0
+
+total time in seconds: 1435.462539434433
+```
+
+EAGLE-1
+
+```
+/opt/bin/cuda-reserve.py --num-gpus 1 python -m eagle.evaluation.gen_ea_answer_llama2chat --base-model-path "meta-llama/Llama-2-7b-chat-hf" --ea-model-path "yuhuili/EAGLE-llama2-chat-7B" --temperature 0.0
+
+total time in seconds: 519.3108916282654
+average accept length: 3.676884889602661
+```
 
 ## EAGLE Weights
 

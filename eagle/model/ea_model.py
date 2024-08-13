@@ -62,6 +62,8 @@ class EaModel(nn.Module):
             self.ea_layer.diff_device = False
         self.ea_layer.to(self.base_model.dtype).to(device)
         self.ea_layer.init_tree()
+        self.total_inferences : int = 0
+        self.total_accept_length : int = 0
 
     def get_tokenizer(self):
         """Get the tokenizer of the base model.
@@ -327,6 +329,8 @@ class EaModel(nn.Module):
                 logits, candidates, logits_processor, cart_candidates_prob, tree_logits[2], tree_buffers["p_indices"],
                 tree_candidates, tree_buffers["b_indices"]
             )
+            self.total_inferences += 1
+            self.total_accept_length += accept_length + 1
             #print("post", time.time() - s)
             input_ids, tree_logits, new_token, hidden_state, sample_token = update_inference_inputs(
                 input_ids,

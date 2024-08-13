@@ -8,7 +8,6 @@ import json
 import os
 script_dir = os.path.dirname(__file__)
 parent_dir = os.path.dirname(script_dir)
-# os.environ["CUDA_VISIBLE_DEVICES"] = "6,7"
 import time
 
 import shortuuid
@@ -16,10 +15,10 @@ from fastchat.llm_judge.common import load_questions
 from fastchat.model import get_conversation_template
 from tqdm import tqdm
 
-from model.ea_model import EaModel
-from model.kv_cache import initialize_past_key_values
-from model.utils import *
-from model.choices import *
+from ..model.ea_model import EaModel
+from ..model.kv_cache import initialize_past_key_values
+from ..model.utils import *
+from ..model.choices import *
 
 
 def ea_forward(input_ids, model, tokenizer, tree_choices, logits_processor=None, max_steps=512):
@@ -83,6 +82,8 @@ def ea_forward(input_ids, model, tokenizer, tree_choices, logits_processor=None,
             logits, candidates, logits_processor, cart_candidates_prob, tree_logits[2], tree_buffers["p_indices"],
             tree_candidates, tree_buffers["b_indices"]
         )
+        model.total_inferences += 1
+        model.total_accept_length += accept_length + 1
         input_ids, tree_logits, new_token, hidden_state, sample_token = update_inference_inputs(
             input_ids,
             candidates,
@@ -274,6 +275,9 @@ def get_model_answers(
     print('Warmup done')
 
     # questions=questions[6:]
+    model.total_inferences = 0
+    model.total_accept_length = 0
+    overall_start_time = time.time()
     for question in tqdm(questions):
 
         choices = []
@@ -355,6 +359,8 @@ def get_model_answers(
                 "tstamp": time.time(),
             }
             fout.write(json.dumps(ans_json) + "\n")
+    print(f"total time in seconds: {time.time() - overall_start_time}")
+    print(f"average accept length: {model.total_accept_length / model.total_inferences}")
 
 
 def reorg_answer_file(answer_file):
@@ -376,15 +382,15 @@ if __name__ == "__main__":
     parser.add_argument(
         "--ea-model-path",
         type=str,
-        default="down_checkpoints/LC70B",
+        default="yuhuili/EAGLE-llama2-chat-7B",
         help="The path to the weights. This can be a local folder or a Hugging Face repo ID.",
     )
-    parser.add_argument("--base-model-path", type=str, default="/home/lyh/weights/hf/llama2chat/70B/",
+    parser.add_argument("--base-model-path", type=str, default="meta-llama/Llama-2-7b-chat-hf",
                         help="1")
     parser.add_argument(
         "--load-in-8bit", action="store_false", help="Use 8-bit quantization"
     )
-    parser.add_argument("--model-id", type=str, default="ess-llama-2-chat-70b-fp16")
+    parser.add_argument("--model-id", type=str, default="ess-llama-2-chat-7b-fp16")
     parser.add_argument(
         "--bench-name",
         type=str,
