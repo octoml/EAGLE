@@ -67,8 +67,7 @@ from transformers import get_linear_schedule_with_warmup, AutoConfig
 
 if accelerator.is_main_process:
     import wandb
-
-    wandb.init(project="ess", entity="yuhui-li", config=train_config)
+    wandb.init(project="ita9naiwa", config=train_config)
 
 baseconfig = AutoConfig.from_pretrained(args.basepath)
 
@@ -372,7 +371,7 @@ for epoch in range(num_epochs + 1):
             if is_warmup:
                 scheduler.step()
 
-        
+
 
         with torch.no_grad():
             _, predicted = torch.max(out_head, 2)
