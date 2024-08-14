@@ -113,7 +113,7 @@ class EConfig(PretrainedConfig):
         self.pretraining_tp = pretraining_tp
         self.use_cache = use_cache
         self.rope_scaling = rope_scaling
-        self._rope_scaling_validation()
+        # self._rope_scaling_validation()
 
         super().__init__(
             pad_token_id=pad_token_id,
