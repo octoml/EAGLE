@@ -495,19 +495,28 @@ class LlamaAttention(nn.Module):
 
     def _init_rope(self):
         if self.config.rope_scaling is None:
-            self.rotary_emb = LlamaRotaryEmbedding(self.head_dim, max_position_embeddings=self.max_position_embeddings)
+            self.rotary_emb = LlamaRotaryEmbedding(
+                self.head_dim, max_position_embeddings=self.max_position_embeddings
+            )
         elif self.config.rope_scaling["rope_type"] == "llama3":
-            self.rotary_emb = LlamaRotaryEmbeddingTransformer(self.head_dim, max_position_embeddings=self.max_position_embeddings, config=self.config)
+            self.rotary_emb = LlamaRotaryEmbeddingTransformer(
+                self.head_dim,
+                max_position_embeddings=self.max_position_embeddings,
+                config=self.config)
         else:
             scaling_type = self.config.rope_scaling["type"]
             scaling_factor = self.config.rope_scaling["factor"]
             if scaling_type == "linear":
                 self.rotary_emb = LlamaLinearScalingRotaryEmbedding(
-                    self.head_dim, max_position_embeddings=self.max_position_embeddings, scaling_factor=scaling_factor
+                    self.head_dim,
+                    max_position_embeddings=self.max_position_embeddings,
+                    scaling_factor=scaling_factor,
                 )
             elif scaling_type == "dynamic":
                 self.rotary_emb = LlamaDynamicNTKScalingRotaryEmbedding(
-                    self.head_dim, max_position_embeddings=self.max_position_embeddings, scaling_factor=scaling_factor
+                    self.head_dim,
+                    max_position_embeddings=self.max_position_embeddings,
+                    scaling_factor=scaling_factor,
                 )
             else:
                 raise ValueError(f"Unknown RoPE scaling type {scaling_type}")
@@ -576,8 +585,10 @@ class LlamaAttention(nn.Module):
         kv_seq_len = key_states.shape[-2]
         if past_key_value is not None:
             kv_seq_len += past_key_value[0].shape[-2]
-        #cos, sin = self.rotary_emb(value_states, seq_len=kv_seq_len)
-        cos, sin = self.rotary_emb(value_states, position_ids)
+        if self.config.rope_scaling is None:
+            cos, sin = self.rotary_emb(value_states, seq_len=kv_seq_len)
+        else:
+            cos, sin = self.rotary_emb(value_states, position_ids)
         query_states, key_states = apply_rotary_pos_emb(
             query_states, key_states, cos, sin, position_ids
         )
