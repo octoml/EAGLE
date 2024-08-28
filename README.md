@@ -108,41 +108,59 @@ pip install -e .
 
 ### Llama-2
 
-Baseline
+Run script `source run-llama-2.sh`
 
 ```
-/opt/bin/cuda-reserve.py --num-gpus 1 python -m eagle.evaluation.gen_baseline_answer_llama2chat --base-model-path "meta-llama/Llama-2-7b-chat-hf" --ea-model-path "yuhuili/EAGLE-llama2-chat-7B" --temperature 0.0
+BASELINE Llama-2
+total time in seconds: 1473.9602913856506
 
-total time in seconds: 1435.462539434433
-```
+Base: meta-llama/Llama-2-7b-chat-hf
+Drft: yuhuili/EAGLE-llama2-chat-7B
+Mode: chain - length 5
+total time in seconds: 877.8712062835693
+average accept length: 2.3283681869506836
 
-EAGLE-1
-
-```
-/opt/bin/cuda-reserve.py --num-gpus 1 python -m eagle.evaluation.gen_ea_answer_llama2chat --base-model-path "meta-llama/Llama-2-7b-chat-hf" --ea-model-path "yuhuili/EAGLE-llama2-chat-7B" --temperature 0.0
-
-total time in seconds: 519.3108916282654
+Base: meta-llama/Llama-2-7b-chat-hf
+Drft: yuhuili/EAGLE-llama2-chat-7B
+Mode: tree - EAGLE-1
+total time in seconds: 524.0542569160461
 average accept length: 3.676884889602661
 ```
 
 ### Llama-3
 
+Move fine tune to `~/models/llama-3-chat`
+And, run script `source run-llama-3.sh`
+
 Baseline
 
 ```
-/opt/bin/cuda-reserve.py --num-gpus 1 python -m eagle.evaluation.gen_baseline_answer_llama3chat --base-model-path "meta-llama/Meta-Llama-3-8B-Instruct" --ea-model-path "yuhuili/EAGLE-LLaMA3-Instruct-8B" --temperature 0.0
+BASELINE Llama-3
+total time in seconds: 980.8523852825165
 
-total time in seconds: 978.0435125827789
-```
+Base: meta-llama/Meta-Llama-3-8B-Instruct
+Drft: yuhuili/EAGLE-LLaMA3-Instruct-8B
+Mode: chain - length 5
+total time in seconds: 653.6523582935333
+average accept length: 1.9890466928482056
 
-EAGLE-1
+Base: meta-llama/Meta-Llama-3-8B-Instruct
+Drft: Hyunsung llama-3-chat fine tune
+Mode: chain - length 5
+total time in seconds: 621.6361937522888
+average accept length: 2.1005005836486816
 
-```
-/opt/bin/cuda-reserve.py --num-gpus 1 python -m eagle.evaluation.gen_ea_answer_llama3chat --base-model-path "meta-llama/Meta-Llama-3-8B-Instruct" --ea-model-path "yuhuili/EAGLE-LLaMA3-Instruct-8B" --temperature 0.0
-
-
-total time in seconds: 463.01745796203613
+Base: meta-llama/Meta-Llama-3-8B-Instruct
+Drft: yuhuili/EAGLE-LLaMA3-Instruct-8B
+Mode: tree - EAGLE-1
+total time in seconds: 453.83766627311707
 average accept length: 2.7998197078704834
+
+Base: meta-llama/Meta-Llama-3-8B-Instruct
+Drft: Hyunsung llama-3-chat fine tune
+Mode: tree - EAGLE-1
+total time in seconds: 422.923953294754
+average accept length: 3.082038164138794
 ```
 
 ## EAGLE Weights
