@@ -129,10 +129,8 @@ average accept length: 3.676884889602661
 
 ### Llama-3
 
-Move fine tune to `~/models/llama-3-chat`
+Move fine tune to `models/llama-3-chat/state_20`
 And, run script `source run-llama-3.sh`
-
-Baseline
 
 ```
 BASELINE Llama-3
@@ -161,6 +159,25 @@ Drft: Hyunsung llama-3-chat fine tune
 Mode: tree - EAGLE-1
 total time in seconds: 422.923953294754
 average accept length: 3.082038164138794
+```
+
+### Llama-3.1
+
+Move fine tune to `models/llama-3-1-chat-with-3-1-data/state_17`
+And, run script `source run-llama-3-1.sh`
+
+```
+Base: meta-llama/Meta-Llama-3-8B-Instruct
+Drft: /home/hlee/scratch/eagle/out/llama-3-1-chat-with-3-1-data/state_17/
+Mode: chain - length 5
+total time in seconds: 1420.5183284282684
+average accept length: 1.988234519958496
+
+Base: meta-llama/Meta-Llama-3-8B-Instruct
+Drft: /home/hlee/scratch/eagle/out/llama-3-1-chat-with-3-1-data/state_17/
+Mode: tree - EAGLE-1
+total time in seconds: 1049.5087773799896
+average accept length: 2.835796356201172
 ```
 
 ## EAGLE Weights
