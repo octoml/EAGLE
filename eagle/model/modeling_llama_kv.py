@@ -27,7 +27,11 @@ from transformers.utils import (
     replace_return_docstrings,
 )
 from transformers import LlamaConfig
-from transformers.models.llama.modeling_llama import LlamaRotaryEmbedding as LlamaRotaryEmbeddingTransformer
+from transformers.models.llama.modeling_llama import (
+    LlamaRotaryEmbedding,
+    apply_rotary_pos_emb,
+    repeat_kv,
+)
 
 logger = logging.get_logger(__name__)
 
@@ -134,191 +138,191 @@ class LlamaRMSNorm(nn.Module):
         return self.weight * hidden_states.to(input_dtype)
 
 
-class LlamaRotaryEmbedding(nn.Module):
-    """
-    Llama Rotary Positional Embedding Module.
+# class LlamaRotaryEmbedding(nn.Module):
+#     """
+#     Llama Rotary Positional Embedding Module.
 
-    Args:
-        dim (int): The dimension of the embedding.
-        max_position_embeddings (int, optional): The maximum position for embeddings. Default is 2048.
-        base (int, optional): The base value for rotational encoding. Default is 10000.
-        device (str, optional): The device on which the computation will be performed. Default is None.
-    """
+#     Args:
+#         dim (int): The dimension of the embedding.
+#         max_position_embeddings (int, optional): The maximum position for embeddings. Default is 2048.
+#         base (int, optional): The base value for rotational encoding. Default is 10000.
+#         device (str, optional): The device on which the computation will be performed. Default is None.
+#     """
 
-    def __init__(self, dim, max_position_embeddings=2048, base=10000, device=None):
-        super().__init__()
+#     def __init__(self, dim, max_position_embeddings=2048, base=10000, device=None):
+#         super().__init__()
 
-        self.dim = dim
-        self.max_position_embeddings = max_position_embeddings
-        self.base = base
-        inv_freq = 1.0 / (
-                self.base ** (torch.arange(0, self.dim, 2).float().to(device) / self.dim)
-        )
-        self.register_buffer("inv_freq", inv_freq)
+#         self.dim = dim
+#         self.max_position_embeddings = max_position_embeddings
+#         self.base = base
+#         inv_freq = 1.0 / (
+#                 self.base ** (torch.arange(0, self.dim, 2).float().to(device) / self.dim)
+#         )
+#         self.register_buffer("inv_freq", inv_freq)
 
-        # Build here to make `torch.jit.trace` work.
-        self._set_cos_sin_cache(
-            seq_len=max_position_embeddings,
-            device=self.inv_freq.device,
-            dtype=torch.get_default_dtype(),
-        )
+#         # Build here to make `torch.jit.trace` work.
+#         self._set_cos_sin_cache(
+#             seq_len=max_position_embeddings,
+#             device=self.inv_freq.device,
+#             dtype=torch.get_default_dtype(),
+#         )
 
-    def _set_cos_sin_cache(self, seq_len, device, dtype):
-        """
-        Set the cosine and sine cache for positional embeddings.
+#     def _set_cos_sin_cache(self, seq_len, device, dtype):
+#         """
+#         Set the cosine and sine cache for positional embeddings.
 
-        Args:
-            seq_len (int): The sequence length.
-            device (str): The device on which the cache tensors will be stored.
-            dtype: The data type of the cache tensors.
-        """
-        self.max_seq_len_cached = seq_len
-        t = torch.arange(
-            self.max_seq_len_cached, device=device, dtype=self.inv_freq.dtype
-        )
+#         Args:
+#             seq_len (int): The sequence length.
+#             device (str): The device on which the cache tensors will be stored.
+#             dtype: The data type of the cache tensors.
+#         """
+#         self.max_seq_len_cached = seq_len
+#         t = torch.arange(
+#             self.max_seq_len_cached, device=device, dtype=self.inv_freq.dtype
+#         )
 
-        freqs = torch.einsum("i,j->ij", t, self.inv_freq)
-        # Different from paper, but it uses a different permutation in order to obtain the same calculation
-        emb = torch.cat((freqs, freqs), dim=-1)
-        self.register_buffer(
-            "cos_cached", emb.cos()[None, None, :, :].to(dtype), persistent=False
-        )
-        self.register_buffer(
-            "sin_cached", emb.sin()[None, None, :, :].to(dtype), persistent=False
-        )
+#         freqs = torch.einsum("i,j->ij", t, self.inv_freq)
+#         # Different from paper, but it uses a different permutation in order to obtain the same calculation
+#         emb = torch.cat((freqs, freqs), dim=-1)
+#         self.register_buffer(
+#             "cos_cached", emb.cos()[None, None, :, :].to(dtype), persistent=False
+#         )
+#         self.register_buffer(
+#             "sin_cached", emb.sin()[None, None, :, :].to(dtype), persistent=False
+#         )
 
-    def forward(self, x, seq_len=None):
-        """
-        Forward pass of the LlamaRotaryEmbedding module.
+#     def forward(self, x, seq_len=None):
+#         """
+#         Forward pass of the LlamaRotaryEmbedding module.
 
-        Args:
-            x (torch.Tensor): Input tensor of shape [bs, num_attention_heads, seq_len, head_size].
-            seq_len (int): The sequence length. If greater than the cached length, the cache will be updated.
+#         Args:
+#             x (torch.Tensor): Input tensor of shape [bs, num_attention_heads, seq_len, head_size].
+#             seq_len (int): The sequence length. If greater than the cached length, the cache will be updated.
 
-        Returns:
-            tuple: A tuple containing two tensors, the cosine and sine embeddings, both of shape [1, 1, seq_len, dim].
-        """
-        if seq_len > self.max_seq_len_cached:
-            self._set_cos_sin_cache(seq_len=seq_len, device=x.device, dtype=x.dtype)
+#         Returns:
+#             tuple: A tuple containing two tensors, the cosine and sine embeddings, both of shape [1, 1, seq_len, dim].
+#         """
+#         if seq_len > self.max_seq_len_cached:
+#             self._set_cos_sin_cache(seq_len=seq_len, device=x.device, dtype=x.dtype)
 
-        return (
-            self.cos_cached[:, :, :seq_len, ...].to(dtype=x.dtype),
-            self.sin_cached[:, :, :seq_len, ...].to(dtype=x.dtype),
-        )
-
-
-class LlamaLinearScalingRotaryEmbedding(LlamaRotaryEmbedding):
-    """
-    LlamaRotaryEmbedding extended with linear scaling.
-
-    This class adds linear scaling to LlamaRotaryEmbedding. Credits to the Reddit user /u/kaiokendev.
-
-    Args:
-        dim (int): The dimension of the embedding.
-        max_position_embeddings (int, optional): The maximum number of position embeddings. Default is 2048.
-        base (int, optional): The base value for the rotational embeddings. Default is 10000.
-        device (str or torch.device, optional): The device where the embeddings should be stored. Default is None.
-        scaling_factor (float, optional): The scaling factor for the embeddings. Default is 1.0.
-    """
-
-    def __init__(
-            self,
-            dim,
-            max_position_embeddings=2048,
-            base=10000,
-            device=None,
-            scaling_factor=1.0,
-    ):
-        self.scaling_factor = scaling_factor
-        super().__init__(dim, max_position_embeddings, base, device)
-
-    def _set_cos_sin_cache(self, seq_len, device, dtype):
-        """
-        Set the cosine and sine cache for the rotary embeddings.
-
-        Args:
-            seq_len (int): The sequence length.
-            device (str or torch.device): The device where the cache should be stored.
-            dtype: The data type for the cache.
-        """
-        self.max_seq_len_cached = seq_len
-        t = torch.arange(
-            self.max_seq_len_cached, device=device, dtype=self.inv_freq.dtype
-        )
-        t = t / self.scaling_factor
-
-        freqs = torch.einsum("i,j->ij", t, self.inv_freq)
-        # Different from paper, but it uses a different permutation in order to obtain the same calculation
-        emb = torch.cat((freqs, freqs), dim=-1)
-        self.register_buffer(
-            "cos_cached", emb.cos()[None, None, :, :].to(dtype), persistent=False
-        )
-        self.register_buffer(
-            "sin_cached", emb.sin()[None, None, :, :].to(dtype), persistent=False
-        )
+#         return (
+#             self.cos_cached[:, :, :seq_len, ...].to(dtype=x.dtype),
+#             self.sin_cached[:, :, :seq_len, ...].to(dtype=x.dtype),
+#         )
 
 
-class LlamaDynamicNTKScalingRotaryEmbedding(LlamaRotaryEmbedding):
-    """
-    LlamaRotaryEmbedding extended with Dynamic NTK scaling.
+# class LlamaLinearScalingRotaryEmbedding(LlamaRotaryEmbedding):
+#     """
+#     LlamaRotaryEmbedding extended with linear scaling.
 
-    Credits to the Reddit users /u/bloc97 and /u/emozilla.
-    """
+#     This class adds linear scaling to LlamaRotaryEmbedding. Credits to the Reddit user /u/kaiokendev.
 
-    def __init__(
-            self,
-            dim,
-            max_position_embeddings=2048,
-            base=10000,
-            device=None,
-            scaling_factor=1.0,
-    ):
-        """
-        Initialize the LlamaDynamicNTKScalingRotaryEmbedding.
+#     Args:
+#         dim (int): The dimension of the embedding.
+#         max_position_embeddings (int, optional): The maximum number of position embeddings. Default is 2048.
+#         base (int, optional): The base value for the rotational embeddings. Default is 10000.
+#         device (str or torch.device, optional): The device where the embeddings should be stored. Default is None.
+#         scaling_factor (float, optional): The scaling factor for the embeddings. Default is 1.0.
+#     """
 
-        Args:
-            dim (int): The dimensionality of the embedding.
-            max_position_embeddings (int, optional): Maximum number of position embeddings. Default is 2048.
-            base (int, optional): Base value for scaling calculations. Default is 10000.
-            device: The device to place tensors on. If None, uses the default device.
-            scaling_factor (float, optional): Scaling factor for NTK scaling. Default is 1.0.
-        """
-        self.scaling_factor = scaling_factor
-        super().__init__(dim, max_position_embeddings, base, device)
+#     def __init__(
+#             self,
+#             dim,
+#             max_position_embeddings=2048,
+#             base=10000,
+#             device=None,
+#             scaling_factor=1.0,
+#     ):
+#         self.scaling_factor = scaling_factor
+#         super().__init__(dim, max_position_embeddings, base, device)
 
-    def _set_cos_sin_cache(self, seq_len, device, dtype):
-        """
-        Set the cached values for cosine and sine.
+#     def _set_cos_sin_cache(self, seq_len, device, dtype):
+#         """
+#         Set the cosine and sine cache for the rotary embeddings.
 
-        Args:
-            seq_len (int): The sequence length.
-            device: The device to place tensors on.
-            dtype: The data type of tensors.
-        """
-        self.max_seq_len_cached = seq_len
+#         Args:
+#             seq_len (int): The sequence length.
+#             device (str or torch.device): The device where the cache should be stored.
+#             dtype: The data type for the cache.
+#         """
+#         self.max_seq_len_cached = seq_len
+#         t = torch.arange(
+#             self.max_seq_len_cached, device=device, dtype=self.inv_freq.dtype
+#         )
+#         t = t / self.scaling_factor
 
-        if seq_len > self.max_position_embeddings:
-            base = self.base * (
-                    (self.scaling_factor * seq_len / self.max_position_embeddings)
-                    - (self.scaling_factor - 1)
-            ) ** (self.dim / (self.dim - 2))
-            inv_freq = 1.0 / (
-                    base ** (torch.arange(0, self.dim, 2).float().to(device) / self.dim)
-            )
-            self.register_buffer("inv_freq", inv_freq)
+#         freqs = torch.einsum("i,j->ij", t, self.inv_freq)
+#         # Different from paper, but it uses a different permutation in order to obtain the same calculation
+#         emb = torch.cat((freqs, freqs), dim=-1)
+#         self.register_buffer(
+#             "cos_cached", emb.cos()[None, None, :, :].to(dtype), persistent=False
+#         )
+#         self.register_buffer(
+#             "sin_cached", emb.sin()[None, None, :, :].to(dtype), persistent=False
+#         )
 
-        t = torch.arange(
-            self.max_seq_len_cached, device=device, dtype=self.inv_freq.dtype
-        )
 
-        freqs = torch.einsum("i,j->ij", t, self.inv_freq)
-        emb = torch.cat((freqs, freqs), dim=-1)
-        self.register_buffer(
-            "cos_cached", emb.cos()[None, None, :, :].to(dtype), persistent=False
-        )
-        self.register_buffer(
-            "sin_cached", emb.sin()[None, None, :, :].to(dtype), persistent=False
-        )
+# class LlamaDynamicNTKScalingRotaryEmbedding(LlamaRotaryEmbedding):
+#     """
+#     LlamaRotaryEmbedding extended with Dynamic NTK scaling.
+
+#     Credits to the Reddit users /u/bloc97 and /u/emozilla.
+#     """
+
+#     def __init__(
+#             self,
+#             dim,
+#             max_position_embeddings=2048,
+#             base=10000,
+#             device=None,
+#             scaling_factor=1.0,
+#     ):
+#         """
+#         Initialize the LlamaDynamicNTKScalingRotaryEmbedding.
+
+#         Args:
+#             dim (int): The dimensionality of the embedding.
+#             max_position_embeddings (int, optional): Maximum number of position embeddings. Default is 2048.
+#             base (int, optional): Base value for scaling calculations. Default is 10000.
+#             device: The device to place tensors on. If None, uses the default device.
+#             scaling_factor (float, optional): Scaling factor for NTK scaling. Default is 1.0.
+#         """
+#         self.scaling_factor = scaling_factor
+#         super().__init__(dim, max_position_embeddings, base, device)
+
+#     def _set_cos_sin_cache(self, seq_len, device, dtype):
+#         """
+#         Set the cached values for cosine and sine.
+
+#         Args:
+#             seq_len (int): The sequence length.
+#             device: The device to place tensors on.
+#             dtype: The data type of tensors.
+#         """
+#         self.max_seq_len_cached = seq_len
+
+#         if seq_len > self.max_position_embeddings:
+#             base = self.base * (
+#                     (self.scaling_factor * seq_len / self.max_position_embeddings)
+#                     - (self.scaling_factor - 1)
+#             ) ** (self.dim / (self.dim - 2))
+#             inv_freq = 1.0 / (
+#                     base ** (torch.arange(0, self.dim, 2).float().to(device) / self.dim)
+#             )
+#             self.register_buffer("inv_freq", inv_freq)
+
+#         t = torch.arange(
+#             self.max_seq_len_cached, device=device, dtype=self.inv_freq.dtype
+#         )
+
+#         freqs = torch.einsum("i,j->ij", t, self.inv_freq)
+#         emb = torch.cat((freqs, freqs), dim=-1)
+#         self.register_buffer(
+#             "cos_cached", emb.cos()[None, None, :, :].to(dtype), persistent=False
+#         )
+#         self.register_buffer(
+#             "sin_cached", emb.sin()[None, None, :, :].to(dtype), persistent=False
+#         )
 
 
 def rotate_half(x):
@@ -336,27 +340,27 @@ def rotate_half(x):
     return torch.cat((-x2, x1), dim=-1)
 
 
-def apply_rotary_pos_emb(q, k, cos, sin, position_ids):
-    """
-    Apply rotary position embeddings to query and key tensors.
+# def apply_rotary_pos_emb(q, k, cos, sin, position_ids):
+#     """
+#     Apply rotary position embeddings to query and key tensors.
 
-    Args:
-        q (torch.Tensor): Query tensor.
-        k (torch.Tensor): Key tensor.
-        cos (torch.Tensor): Cosine values.
-        sin (torch.Tensor): Sine values.
-        position_ids (torch.Tensor): Position IDs.
+#     Args:
+#         q (torch.Tensor): Query tensor.
+#         k (torch.Tensor): Key tensor.
+#         cos (torch.Tensor): Cosine values.
+#         sin (torch.Tensor): Sine values.
+#         position_ids (torch.Tensor): Position IDs.
 
-    Returns:
-        torch.Tensor: Query and key tensors with rotary position embeddings applied.
-    """
-    cos = cos.squeeze(1).squeeze(0)
-    sin = sin.squeeze(1).squeeze(0)
-    cos = cos[position_ids].unsqueeze(1)
-    sin = sin[position_ids].unsqueeze(1)
-    q_embed = (q * cos) + (rotate_half(q) * sin)
-    k_embed = (k * cos) + (rotate_half(k) * sin)
-    return q_embed, k_embed
+#     Returns:
+#         torch.Tensor: Query and key tensors with rotary position embeddings applied.
+#     """
+#     cos = cos.squeeze(1).squeeze(0)
+#     sin = sin.squeeze(1).squeeze(0)
+#     cos = cos[position_ids].unsqueeze(1)
+#     sin = sin[position_ids].unsqueeze(1)
+#     q_embed = (q * cos) + (rotate_half(q) * sin)
+#     k_embed = (k * cos) + (rotate_half(k) * sin)
+#     return q_embed, k_embed
 
 
 class LlamaMLP(nn.Module):
@@ -424,24 +428,24 @@ class LlamaMLP(nn.Module):
         return down_proj
 
 
-def repeat_kv(hidden_states: torch.Tensor, n_rep: int) -> torch.Tensor:
-    """
-    Repeat key and value tensors n times along the specified dimension.
+# def repeat_kv(hidden_states: torch.Tensor, n_rep: int) -> torch.Tensor:
+#     """
+#     Repeat key and value tensors n times along the specified dimension.
 
-    Args:
-        hidden_states (torch.Tensor): Input tensor with shape (batch, num_key_value_heads, seqlen, head_dim).
-        n_rep (int): Number of times to repeat.
+#     Args:
+#         hidden_states (torch.Tensor): Input tensor with shape (batch, num_key_value_heads, seqlen, head_dim).
+#         n_rep (int): Number of times to repeat.
 
-    Returns:
-        torch.Tensor: Repeated tensor with shape (batch, num_key_value_heads * n_rep, seqlen, head_dim).
-    """
-    batch, num_key_value_heads, slen, head_dim = hidden_states.shape
-    if n_rep == 1:
-        return hidden_states
-    hidden_states = hidden_states[:, :, None, :, :].expand(
-        batch, num_key_value_heads, n_rep, slen, head_dim
-    )
-    return hidden_states.reshape(batch, num_key_value_heads * n_rep, slen, head_dim)
+#     Returns:
+#         torch.Tensor: Repeated tensor with shape (batch, num_key_value_heads * n_rep, seqlen, head_dim).
+#     """
+#     batch, num_key_value_heads, slen, head_dim = hidden_states.shape
+#     if n_rep == 1:
+#         return hidden_states
+#     hidden_states = hidden_states[:, :, None, :, :].expand(
+#         batch, num_key_value_heads, n_rep, slen, head_dim
+#     )
+#     return hidden_states.reshape(batch, num_key_value_heads * n_rep, slen, head_dim)
 
 
 class LlamaAttention(nn.Module):
@@ -494,32 +498,36 @@ class LlamaAttention(nn.Module):
         self._init_rope()
 
     def _init_rope(self):
-        if self.config.rope_scaling is None:
-            self.rotary_emb = LlamaRotaryEmbedding(
-                self.head_dim, max_position_embeddings=self.max_position_embeddings
-            )
-        elif self.config.rope_scaling["rope_type"] == "llama3":
-            self.rotary_emb = LlamaRotaryEmbeddingTransformer(
-                self.head_dim,
-                max_position_embeddings=self.max_position_embeddings,
-                config=self.config)
-        else:
-            scaling_type = self.config.rope_scaling["type"]
-            scaling_factor = self.config.rope_scaling["factor"]
-            if scaling_type == "linear":
-                self.rotary_emb = LlamaLinearScalingRotaryEmbedding(
-                    self.head_dim,
-                    max_position_embeddings=self.max_position_embeddings,
-                    scaling_factor=scaling_factor,
-                )
-            elif scaling_type == "dynamic":
-                self.rotary_emb = LlamaDynamicNTKScalingRotaryEmbedding(
-                    self.head_dim,
-                    max_position_embeddings=self.max_position_embeddings,
-                    scaling_factor=scaling_factor,
-                )
-            else:
-                raise ValueError(f"Unknown RoPE scaling type {scaling_type}")
+        self.rotary_emb = LlamaRotaryEmbedding(
+            self.head_dim,
+            max_position_embeddings=self.max_position_embeddings,
+            config=self.config)
+        # if self.config.rope_scaling is None:
+        #     self.rotary_emb = LlamaRotaryEmbedding(
+        #         self.head_dim, max_position_embeddings=self.max_position_embeddings
+        #     )
+        # elif self.config.rope_scaling["rope_type"] == "llama3":
+        #     self.rotary_emb = LlamaRotaryEmbeddingTransformer(
+        #         self.head_dim,
+        #         max_position_embeddings=self.max_position_embeddings,
+        #         config=self.config)
+        # else:
+        #     scaling_type = self.config.rope_scaling["type"]
+        #     scaling_factor = self.config.rope_scaling["factor"]
+        #     if scaling_type == "linear":
+        #         self.rotary_emb = LlamaLinearScalingRotaryEmbedding(
+        #             self.head_dim,
+        #             max_position_embeddings=self.max_position_embeddings,
+        #             scaling_factor=scaling_factor,
+        #         )
+        #     elif scaling_type == "dynamic":
+        #         self.rotary_emb = LlamaDynamicNTKScalingRotaryEmbedding(
+        #             self.head_dim,
+        #             max_position_embeddings=self.max_position_embeddings,
+        #             scaling_factor=scaling_factor,
+        #         )
+        #     else:
+        #         raise ValueError(f"Unknown RoPE scaling type {scaling_type}")
 
     def _shape(self, tensor: torch.Tensor, seq_len: int, bsz: int):
         return (
@@ -732,7 +740,6 @@ class LlamaDecoderLayer(nn.Module):
             use_cache=use_cache,
         )
         hidden_states = residual + hidden_states
-
         if hidden_states.dtype == torch.float16:
             clamp_value = torch.where(
                 torch.isinf(hidden_states).any(),
