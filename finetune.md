@@ -8,15 +8,15 @@ fine tuning readme
 export EAGLEHOME=<your home directory>
 cd $EAGLEHOME/eagle/ge_data
 wget https://huggingface.co/datasets/Aeala/ShareGPT_Vicuna_unfiltered/blob/main/ShareGPT_V4.3_unfiltered_cleaned_split.json
-/opt/bin/cuda-reserve.py --num-gpus 2 python allocation.py --outdir ../../train-data-llama-3-1-8b
+/opt/bin/cuda-reserve.py --num-gpus 4 python allocation.py --outdir ../../train-data-llama-3-1-8b
 ```
 
 ### Fine tuning
 
 ```
 cd $EAGLEHOME
-export BASEMODEL="meta-llama/Meta-Llama-3.1-8B-Instruct"
-export OUTPUTDIR="models/eagle-llama-3.1-instruct-8b"
+export BASEMODEL=/path/to/Meta-Llama-3.1-8B-Instruct
+export OUTPUTDIR=models/EAGLE-Llama-3.1-8B-Instruct
 /opt/bin/cuda-reserve.py --num-gpus 2 \
 accelerate launch -m --num_processes 2 --mixed_precision=bf16 eagle.train.main \
 --tmpdir train-data-llama-3-1-8b \
