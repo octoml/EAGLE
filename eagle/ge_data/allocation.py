@@ -11,9 +11,11 @@ from concurrent.futures import ThreadPoolExecutor
 s = 0
 e = 68000 - 1
 #e = 68 - 1
-#gpus = [[0],[1],[2],[3],[4],[5],[6],[7]]
+# gpus = [[0],[1],[2],[3],[4],[5],[6],[7]]
+# gpus = [[0],[1],[2],[3],[4],[5],[6]]
 
-gpus=[[0],[1],[2],[3]]
+# gpus=[[0],[1],[2],[3]]
+gpus=[[0]]
 num_p = len(gpus)
 outdir = '{}/sharegpt_{}_{}_mufp16'.format(args.outdir,s,e)
 
@@ -46,6 +48,7 @@ if not os.path.exists(outdir):
 
 data_a = split_range(s, e, num_p, over=True)
 commands = []
+print(data_a)
 for i in range(num_p):
     index = i
     start = data_a[i][0]
@@ -58,9 +61,9 @@ for i in range(num_p):
     command = "python ge_data_all_llama3-1chat.py --start={} --end={} --index={} --gpu_index {} --outdir {}".format(start, end, index,
                                                                                                 gpu_index_str, outdir)
     commands.append(command)
-# run_command(commands[0])
-# commands=commands[:1]
-with ThreadPoolExecutor(max_workers=len(commands)) as executor:
-    for command in commands:
-        executor.submit(run_command, command)
-        print(command)
+
+print(commands)
+# with ThreadPoolExecutor(max_workers=len(commands)) as executor:
+#     for command in commands:
+#         executor.submit(run_command, command)
+#         print(command)

@@ -10,7 +10,7 @@ parser.add_argument('--outdir', type=str, default='outdir0')
 args = parser.parse_args()
 import os
 
-os.environ["CUDA_VISIBLE_DEVICES"] = str(args.gpu_index)[1:-1]
+# os.environ["CUDA_VISIBLE_DEVICES"] = str(args.gpu_index)[1:-1]
 import torch
 import torch.nn.functional as F
 from tqdm import tqdm
@@ -19,7 +19,8 @@ from datasets import load_dataset
 import json
 from fastchat.model.model_adapter import get_conversation_template
 
-bigname="meta-llama/Meta-Llama-3.1-8B"
+bigname="/opt/models/meta-llama-3.1-70b-instruct"
+# bigname="/opt/models/Meta-Llama-3.1-8B-Instruct"
 # bigname = "/home/lyh/weights/hf/llama/7B/"
 # smallname = "/home/lyh/weights/hf/llama/7B/"
 
@@ -46,12 +47,9 @@ def build_dataset_rank(
     ds = load_dataset('json', data_files="ShareGPT_V4.3_unfiltered_cleaned_split.json")
     ds = ds['train']
     ds = ds.shuffle(seed=42)
-    ds1 = ds.select(range(args.start, args.end))
-    # ds1 = ds.select(range(100,200))
-    # dst=ds.select(range(200,300))
-    # ds2=ds.select(range(300,len(ds)))
+    # ds1 = ds.select(range(args.start, args.end))
+    ds1 = ds.select(range(0, 1000))
     original_columns1 = ds1.column_names
-    # original_columns2 = ds2.column_names
     num_proc = 4
 
     def preprocess_function(examples):
@@ -157,25 +155,18 @@ def build_dataset_rank(
 bigtokenizer = AutoTokenizer.from_pretrained(bigname,use_fast=False)
 ds = build_dataset_rank(bigtokenizer)
 print(ds)
-# quantization_config = BitsAndBytesConfig(
-#         load_in_4bit=True,
-#         bnb_4bit_compute_dtype=torch.bfloat16,
-#         bnb_4bit_use_double_quant=True,
-#         bnb_4bit_quant_type="nf4",
-#     )
-# bigmodel = AutoModelForCausalLM.from_pretrained(bigname, load_in_4bit=True, device_map={"": 0}, )
+
 # smallmodel = AutoModelForCausalLM.from_pretrained(smallname, load_in_4bit=True, device_map={"": 1}, )
-bigmodel = AutoModelForCausalLM.from_pretrained(bigname,  device_map="auto",torch_dtype=torch.float16)
+bigmodel = AutoModelForCausalLM.from_pretrained(bigname, torch_dtype=torch.float16)
+
+# bigmodel = AutoModelForCausalLM.from_pretrained(bigname)
+
 #bigmodel = AutoModelForCausalLM.from_pretrained(bigname,  device_map="auto",load_in_8bit=True)
 bigmodel.eval()
+from accelerate import Accelerator
+accelerator = Accelerator()
 
-
-
-
-
-
-
-
+bigmodel = accelerator.prepare(bigmodel)
 
 
 
@@ -203,9 +194,12 @@ def writedata(name,data_point):
 
 
 for id,data in enumerate(ds):
+    print(id)
     if id%100==0:
         print(id,end="\t")
     if id % 1000 == 0:
         print("")
     outdata = ge(data)
+    del data
     writedata(outdir,outdata)
+    del outdata
