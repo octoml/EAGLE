@@ -21,6 +21,10 @@ import json
 from fastchat.model.model_adapter import get_conversation_template
 
 bigname = args.base_model_path
+# bigname =
+# bigname="/opt/models/Meta-Llama-3.1-8B-Instruct"
+# bigname = "/home/lyh/weights/hf/llama/7B/"
+# smallname = "/home/lyh/weights/hf/llama/7B/"
 
 
 
