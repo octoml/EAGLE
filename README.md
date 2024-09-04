@@ -1,73 +1,4 @@
-<img src="figs/logo.png" alt="EAGLE" width="220" align="left"><div align="center"><h1>&nbsp;EAGLE: Speculative Sampling Requires Rethinking Feature Uncertainty</h1></div>
-
-<p align="center">
-| <a href="https://arxiv.org/pdf/2401.15077.pdf"><b>Paper</b></a> | <a href="https://sites.google.com/view/
-eagle-llm"><b>Blog</b></a> |
-</p>
-
-
-<p align="center">
-  <a href="">
-    <img src="https://img.shields.io/badge/Version-v1.1.0-orange.svg" alt="Version">
-  </a>
-  <a href="https://opensource.org/licenses/Apache-2.0">
-    <img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="License">
-  </a>
-  <a href="https://github.com/SafeAILab/EAGLE/issues">
-    <img src="https://img.shields.io/badge/Maintained%3F-yes-green.svg" alt="Maintenance">
-  </a>
-  <a href="https://github.com/SafeAILab/EAGLE/pulls">
-    <img src="https://img.shields.io/badge/Contributions-welcome-brightgreen.svg?style=flat" alt="Contributions welcome">
-  </a>
-</p>
-
-
-##
-
-<p align="center">
-  <img src="./figs/benchmark.png" alt="benchmark" width="790">
-</p>
-
-EAGLE (Extrapolation Algorithm for Greater Language-model Efficiency) is a new baseline for fast decoding of Large Language Models (LLMs) with provable performance maintenance. This approach involves extrapolating the second-top-layer contextual feature vectors of LLMs, enabling a significant boost in generation efficiency. EAGLE is building upon the following First Principle:
-
-**The sequence of LLM feature vectors is compressible over time, making the prediction of subsequent feature vectors from previous ones easy.**
-
-- EAGLE is:
-	- certified by the <a href="https://github.com/hemingkx/Spec-Bench/blob/main/Leaderboard.md"><b>third-party</b></a> evaluation as the **fastest** speculative method so far. 
-	- achieving **2x** speedup on <a href="https://github.com/pytorch-labs/gpt-fast"><b>gpt-fast</b></a>.
-	- **3x** faster than vanilla decoding (13B).
- 	- **2x** faster than <a href="https://lmsys.org/blog/2023-11-21-lookahead-decoding/"><b>Lookahead</b></a> (13B).
- 	- **1.6x** faster than <a href="https://sites.google.com/view/medusa-llm"><b>Medusa</b></a> (13B).
-  	- provably maintaining the consistency with vanilla decoding in the distribution of generated texts.
-  	- trainable (within 1-2 days) and testable on 8x RTX 3090 GPUs. So even the GPU poor can afford it.
-	- combinable with other parallelled techniques such as vLLM, DeepSpeed, Mamba, FlashAttention, quantization, and hardware optimization.
-
-<p align="center">
-  <img src="./figs/demosmall.gif" alt="demogif">
-</p>
-
-_Inference is conducted on RTX 3090 GPUs at fp16 precision using the Vicuna 33B model. For an enhanced viewing experience, the animation has been sped up fourfold._
-
-## Update
-**2024.2.25**: EAGLE is certified by the <a href="https://github.com/hemingkx/Spec-Bench/blob/main/Leaderboard.md">third-party</a> evaluation as the fastest speculative method.
-
-**2024.1.17**: We now support [Mixtral-8x7B-Instruct](https://huggingface.co/mistralai/Mixtral-8x7B-Instruct-v0.1).
-
-**2024.1.17**: We have integrated [gpt-fast](https://github.com/pytorch-labs/gpt-fast) into EAGLE, [further accelerating](https://github.com/SafeAILab/EAGLE/tree/eaglefast) the generation speed.
-
-**2024.1.15**: We now support [batch size > 1](#batch-size--1) generation.
-
-**2023.12.8**: EAGLE v1.0 is released.
-
-
-
-## Todo
-- [x] Support non-greedy inference (provably maintaining text distribution).
-- [x] Support bs > 1.
-- [x] Support gpt-fast.
-- [x] Support more LLMs such as Mixtral 8x7B.
-- [ ] Support LLaMA-3.
-
+Refer original [repo document](https://github.com/SafeAILab/EAGLE).
 
 ## Contents
 
@@ -84,29 +15,21 @@ _Inference is conducted on RTX 3090 GPUs at fp16 precision using the Vicuna 33B 
 - [Evaluation](#evaluation)
 - [With gpt-fast](#with-gpt-fast)
   - [Setup](#setup)
-  - [Quantizing Weights](quantizing-weights)
-  - [Modifying Path](modifying-path)
+  - [Quantizing Weights](quantizing-weights) 
 
 ## Setup & Installation
 
-### With pip 
-
-
-```bash
-pip install eagle-llm
-```
-
-### From the source
+only from the source available, this codebase has been modified. 
 
 ```bash
-git clone https://github.com/SafeAILab/EAGLE.git
+git clone https://github.com/octoml/EAGLE.git
 cd EAGLE
 pip install -e .
 ```
 
 ## Average Acceptance Length
 
-### Llama-2
+### Llama-2-7B
 
 Run script `source run-llama-2.sh`
 
@@ -127,7 +50,7 @@ total time in seconds: 524.0542569160461
 average accept length: 3.676884889602661
 ```
 
-### Llama-3
+### Llama-3-8B
 
 Move fine tune to `models/llama-3-chat/state_20`
 And, run script `source run-llama-3.sh`
@@ -161,7 +84,7 @@ total time in seconds: 422.923953294754
 average accept length: 3.082038164138794
 ```
 
-### Llama-3.1
+### Llama-3.1-8B
 
 Move fine tune to `models/llama-3-1-chat-with-3-1-data/state_17`
 And, run script `source run-llama-3-1.sh`
@@ -179,16 +102,6 @@ Mode: tree - EAGLE-1
 total time in seconds: 1049.5087773799896
 average accept length: 2.835796356201172
 ```
-
-## EAGLE Weights
-
-| Base Model  | EAGLE on Hugging Face  | \# EAGLE Parameters | Base Model  | EAGLE on Hugging Face  | \# EAGLE Parameters |
-|------|------|------|------|------|------|
-| Vicuna-7B-v1.3 | [yuhuili/EAGLE-Vicuna-7B-v1.3](https://huggingface.co/yuhuili/EAGLE-Vicuna-7B-v1.3) | 0.24B | LLaMA2-Chat 7B | [yuhuili/EAGLE-llama2-chat-7B](https://huggingface.co/yuhuili/EAGLE-llama2-chat-7B) | 0.24B |
-| Vicuna-13B-v1.3 | [yuhuili/EAGLE-Vicuna-13B-v1.3](https://huggingface.co/yuhuili/EAGLE-Vicuna-13B-v1.3) | 0.37B | LLaMA2-Chat 13B | [yuhuili/EAGLE-llama2-chat-13B](https://huggingface.co/yuhuili/EAGLE-llama2-chat-13B) | 0.37B |
-| Vicuna-33B-v1.3 | [yuhuili/EAGLE-Vicuna-33B-v1.3](https://huggingface.co/yuhuili/EAGLE-Vicuna-33B-v1.3)| 0.56B | LLaMA2-Chat 70B| [yuhuili/EAGLE-llama2-chat-70B](https://huggingface.co/yuhuili/EAGLE-llama2-chat-70B)| 0.99B |
-| Mixtral-8x7B-Instruct-v0.1 | [yuhuili/EAGLE-mixtral-instruct-8x7B](https://huggingface.co/yuhuili/EAGLE-mixtral-instruct-8x7B)| 0.28B |
-
 
 ## Inference
 The inference code we provide automatically allocates model weights (loading a model across multiple GPUs), allowing you to run models that exceed the memory of a single GPU.
@@ -397,28 +310,3 @@ python -m model.quantize_llama --checkpoint_path path_of_base_model/model.pth
 python -m model.quantize_EAGLE --checkpoint_path path_of_eagle/model.pth
 ```
 
-### Modifying Path
-
-When specifying the model weights (including the base model and EAGLE), change "path" to "path/model_int4.g32.pth".
-
-## 🌟 Our Contributors
-
-A heartfelt thank you to all our contributors.
-
-![Contributors](https://contrib.rocks/image?repo=SafeAILab/EAGLE)
-
-
-## Reference
-For technical details and full experimental results, please check [the paper](https://arxiv.org/pdf/2401.15077.pdf).
-```
-@inproceedings{li2024eagle, 
-	author = {Yuhui Li and Fangyun Wei and Chao Zhang and Hongyang Zhang}, 
-	title = {EAGLE: Speculative Sampling Requires Rethinking Feature Uncertainty}, 
-	booktitle = {International Conference on Machine Learning},
-	year = {2024}
-}
-```
-
-## Acknowledgements
-
-This project has been influenced by many excellent projects in the LLM community, such as [Medusa](https://github.com/FasterDecoding/Medusa), [FastChat](https://github.com/lm-sys/FastChat), and others. The logo is designed by GPT-4. We also appreciate many valuable discussions with Tianle Cai, Hao Zhang, Ziteng Sun, and others.
