@@ -171,9 +171,7 @@ class CustomDataset(Dataset):
         new_data["target"] = target
         new_data["hidden_state_big"] = hidden_state
         new_data["input_ids"] = input_ids_target
-        # sample = torch.cat((data['xs'],data['xb']))
-        # sample=torch.cat((self.data[index]['x'],self.data[index]['logits']))
-        # label = data['y']
+        print("load ", index, "done")
 
         if self.transform:
             new_data = self.transform(new_data)
@@ -339,6 +337,7 @@ else:
     model, head, optimizer, train_loader, test_loader = accelerator.prepare(
         model, head, optimizer, train_loader, test_loader
     )
+
 # accelerator.load_state("checkpoints/state_5")
 for epoch in range(num_epochs + 1):
     top_3acc = [0 for _ in range(3)]
@@ -368,6 +367,7 @@ for epoch in range(num_epochs + 1):
             accelerator.backward(loss)
             accelerator.clip_grad_value_(model.parameters(), train_config["grad_clip"])
             optimizer.step()
+            torch.cuda.empty_cache()
             if is_warmup:
                 scheduler.step()
 
