@@ -99,7 +99,9 @@ average accept length: 2.835796356201172
 ```
 
 ### Llama-3.1-70B
-Eval script WIP
+```
+/opt/bin/cuda-reserve.py --num-gpus 6 python -m eagle.evaluation.gen_ea_answer_llama3chat --base-model-path /opt/models/meta-llama-3.1-70b-instruct/ --ea-model-path /home/hlee/scratch/eagle/out/llama-3-1-70B-instruct-3000/state_10/ --temperature 0.0 --tree-choices chain5
+```
 
 ## Train
 
