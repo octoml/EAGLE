@@ -98,6 +98,9 @@ total time in seconds: 1049.5087773799896
 average accept length: 2.835796356201172
 ```
 
+### Llama-3.1-70B
+Eval script WIP
+
 ## Train
 
 ### Generate Train Data
@@ -125,18 +128,42 @@ the hidden states of the last layer and logits are used later to train draft mod
 Currently, 70B model cannot be loaded in a single gpu so accelerate is used to build dataset.
 
 ```
-/opt/bin/cuda-reserve.py --num-gpus 6 accelerate launch --config_file=multi_gpu_acc.yaml  ge_data_all_llama3-1-70Bchat.py --start=0 --end=68000 --index=0 --gpu_index 0 --outdir ../../train-data-llama-3-1-70b/sharegpt_0_67999_mufp16
+/opt/bin/cuda-reserve.py --num-gpus 6 accelerate launch --config_file=multi_gpu_acc.yaml  ge_data_all_llama3-1-70Bchat.py \
+--start=0 --end=68000 --index=0 --gpu_index 0 --outdir ../../train-data-llama-3-1-70b/sharegpt_0_67999_mufp16 --base-model-path /opt/models/meta-llama-3.1-70b-instruct
 ```
 
 
 
-python -m eagle.ge_data.allocation --outdir=
 ### Train the Auto-regression Head
+Training draft model usually takes 20h (llama 3.1 8B) and 60h (Llama 3.1 70B) to finish.
 ```bash
-accelerate launch -m --mixed_precision=bf16 eagle.train.main --tmpdir [path of data]\
---cpdir [path of checkpoints] -- configpath [path of config file]
+python -m eagle.train.main \
+	--tmpdir [training data path] \
+	--basepath [base model path] \
+	--cpdir [draft model output path] \
+	--configpath [draft model config path]
 ```
-*eagle/train* provides examples of configuration files.
+
+**Llama 3.1 8B**
+```
+/opt/bin/cuda-reserve.py --num-gpus 2 --timeout 360000000 \
+    accelerate launch -m --num_processes 2 --mixed_precision=bf16 eagle.train.main \
+        --tmpdir train-data-llama-3-1 \
+        --basepath /opt/models/Meta-Llama-3.1-8B-Instruct/ \
+        --cpdir ~/scratch/eagle/out/llama-3-1-chat-with-3-1-data \
+        --configpath eagle/train/llama-3-1-8b-instruct_config.json
+```
+
+**Llama 3.1 70B**
+```
+  /opt/bin/cuda-reserve.py --num-gpus 1 --timeout 360000000     python -m eagle.train.main \
+	--tmpdir train-data-llama-3-1-70b-clean \
+	--basepath /opt/models/meta-llama-3.1-70b-instruct \
+	--cpdir ~/scratch/eagle/out/llama-3-1-70B-instruct \
+	--configpath eagle/train/llama-3.1-70B-instruct_config.json
+```
+
+
 
 ### Inference on custom models
 
