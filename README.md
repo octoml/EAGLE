@@ -2,18 +2,12 @@ Refer original [repo document](https://github.com/SafeAILab/EAGLE).
 
 ## Contents
 - [Setup & Installation](#setup--installation)
+- [Average Acceptance Length](#average-acceptance-length) 
 - [Train](#train)
-  - [Generate Train Data](#generate-train-data)
-  - [Train the Auto-regression Head](#train-the-auto-regression-head)
-  - [Inference on custom models](#inference-on-custom-models)
 - [Inference](#inference)
-  - [With UI](#with-ui)
-  - [With Code](#with-code)
-  - [Batch size > 1](#batch-size--1)
 - [Evaluation](#evaluation)
 - [With gpt-fast](#with-gpt-fast)
-  - [Setup](#setup)
-  - [Quantizing Weights](quantizing-weights) 
+
 
 ## Setup & Installation
 
