@@ -120,6 +120,26 @@ average accept length: 2.5460190773010254
 
 ## Train
 
+### Environment
+
+**Llama 3.1 8B**
+```
+export EAGLE_HOME=<your home directory>
+export TRAIN_DATA_PATH=$EAGLE_HOME/train-data-llama-3-1-8b
+export BASE_MODEL_PATH=/opt/models/Meta-Llama-3.1-8B-Instruct/
+export DRAFT_MODEL_PATH=<your draft model output directory>
+export CONFIG_PATH=$EAGLE_HOME/eagle/train/llama-3-1-8b-instruct_config.json
+```
+
+**Llama 3.1 70B**
+```
+export EAGLE_HOME=<your home directory>
+export TRAIN_DATA_PATH=$EAGLE_HOME/train-data-llama-3-1-70b
+export BASE_MODEL_PATH=/opt/models/Meta-Llama-3.1-70B-Instruct/
+export DRAFT_MODEL_PATH=<your draft model output directory>
+export CONFIG_PATH=$EAGLE_HOME/eagle/train/llama-3.1-70B-instruct_config.json
+```
+
 ### Generate Train Data
 
 You can run the following command to generate the training data.
@@ -134,10 +154,9 @@ wget https://huggingface.co/datasets/Aeala/ShareGPT_Vicuna_unfiltered/resolve/ma
 with training data, base model generates hidden state of the last layer and logits. 
 the hidden states of the last layer and logits are used later to train draft model.
 
-
 **Llama 3.1 8B**
 ```
-/opt/bin/cuda-reserve.py --num-gpus 4 python -m eagle.ge_data.allocation --outdir ../../eagle/tr-data-out/llama-3-1-chat-training-data --base-model-path /opt/models/Meta-Llama-3.1-8B-Instruct
+/opt/bin/cuda-reserve.py --num-gpus 4 python -m eagle.ge_data.allocation --outdir $TRAIN_DATA_PATH --base-model-path $BASE_MODEL_PATH
 ```
 
 **Llama 3.1 70B**
@@ -146,41 +165,31 @@ Currently, 70B model cannot be loaded in a single gpu so accelerate is used to b
 
 ```
 /opt/bin/cuda-reserve.py --num-gpus 6 accelerate launch --config_file=multi_gpu_acc.yaml  ge_data_all_llama3-1-70Bchat.py \
---start=0 --end=68000 --index=0 --gpu_index 0 --outdir ../../train-data-llama-3-1-70b/sharegpt_0_67999_mufp16 --base-model-path /opt/models/meta-llama-3.1-70b-instruct
+--start=0 --end=68000 --index=0 --gpu_index 0 --outdir $TRAIN_DATA_PATH/sharegpt_0_67999_mufp16 --base-model-path $BASE_MODEL_PATH
 ```
-
-
 
 ### Train the Auto-regression Head
 Training draft model usually takes 20h (llama 3.1 8B) and 60h (Llama 3.1 70B) to finish.
-```bash
-python -m eagle.train.main \
-	--tmpdir [training data path] \
-	--basepath [base model path] \
-	--cpdir [draft model output path] \
-	--configpath [draft model config path]
-```
 
 **Llama 3.1 8B**
 ```
 /opt/bin/cuda-reserve.py --num-gpus 2 --timeout 360000000 \
-    accelerate launch -m --num_processes 2 --mixed_precision=bf16 eagle.train.main \
-        --tmpdir train-data-llama-3-1 \
-        --basepath /opt/models/Meta-Llama-3.1-8B-Instruct/ \
-        --cpdir ~/scratch/eagle/out/llama-3-1-chat-with-3-1-data \
-        --configpath eagle/train/llama-3-1-8b-instruct_config.json
+  accelerate launch -m --num_processes 2 --mixed_precision=bf16 eagle.train.main \
+    --tmpdir $TRAIN_DATA_PATH \
+    --basepath $BASE_MODEL_PATH \
+    --cpdir $DRAFT_MODEL_PATH \
+    --configpath $CONFIG_PATH
 ```
 
 **Llama 3.1 70B**
 ```
-  /opt/bin/cuda-reserve.py --num-gpus 1 --timeout 360000000     python -m eagle.train.main \
-	--tmpdir train-data-llama-3-1-70b-clean \
-	--basepath /opt/models/meta-llama-3.1-70b-instruct \
-	--cpdir ~/scratch/eagle/out/llama-3-1-70B-instruct \
-	--configpath eagle/train/llama-3.1-70B-instruct_config.json
+/opt/bin/cuda-reserve.py --num-gpus 1 --timeout 360000000 \
+  python -m eagle.train.main \
+    --tmpdir $TRAIN_DATA_PATH \
+    --basepath $BASE_MODEL_PATH \
+    --cpdir $DRAFT_MODEL_PATH \
+    --configpath $CONFIG_PATH
 ```
-
-
 
 ### Inference on custom models
 
