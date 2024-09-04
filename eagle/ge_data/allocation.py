@@ -3,6 +3,7 @@ import copy
 
 parser = argparse.ArgumentParser(description='sp')
 parser.add_argument('--outdir', type=str, default='0')
+parser.add_argument('--base-model-path', type=str, default='/opt/models/Meta-Llama-3.1-8B-Instruct')
 args = parser.parse_args()
 
 import os
@@ -58,8 +59,8 @@ for i in range(num_p):
     gpu_index = gpus[i]
     gpu_index_str = ' '.join(map(str, gpu_index))
     # gpu_index_str='['+gpu_index_str+']'
-    command = "python ge_data_all_llama3-1chat.py --start={} --end={} --index={} --gpu_index {} --outdir {}".format(start, end, index,
-                                                                                                gpu_index_str, outdir)
+    command = "python ge_data_all_llama3-1chat.py --start={} --end={} --index={} --gpu_index {} --outdir {} --base-model-path {}".format(
+        start, end, index, gpu_index_str, outdir, args.base_model_path),
     commands.append(command)
 
 print(commands)

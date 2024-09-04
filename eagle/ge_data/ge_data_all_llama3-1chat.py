@@ -7,6 +7,7 @@ parser.add_argument('--end', type=int, default=100)
 parser.add_argument('--index', type=int, default=1)
 parser.add_argument('--gpu_index', type=int, nargs='+', default=[0])
 parser.add_argument('--outdir', type=str, default='outdir0')
+parser.add_argument('--base-model-path', type=str, default="/opt/models/Meta-Llama-3.1-8B-Instruct")
 args = parser.parse_args()
 import os
 
@@ -19,10 +20,7 @@ from datasets import load_dataset
 import json
 from fastchat.model.model_adapter import get_conversation_template
 
-bigname="/opt/models/meta-llama-3.1-70b-instruct"
-# bigname="/opt/models/Meta-Llama-3.1-8B-Instruct"
-# bigname = "/home/lyh/weights/hf/llama/7B/"
-# smallname = "/home/lyh/weights/hf/llama/7B/"
+bigname = args.base_model_path
 
 
 
