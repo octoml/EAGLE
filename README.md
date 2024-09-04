@@ -99,8 +99,23 @@ average accept length: 2.835796356201172
 ```
 
 ### Llama-3.1-70B
+
+Move fine tune `models/llama-3-1-70B-instruct-3000/state_10/`
+And, run script `source run-llama-3-1-70b.sh`
+
 ```
-/opt/bin/cuda-reserve.py --num-gpus 6 python -m eagle.evaluation.gen_ea_answer_llama3chat --base-model-path /opt/models/meta-llama-3.1-70b-instruct/ --ea-model-path /home/hlee/scratch/eagle/out/llama-3-1-70B-instruct-3000/state_10/ --temperature 0.0 --tree-choices chain5
+Base: meta-llama/Meta-Llama-3-70B-Instruct
+Drft: /home/hlee/scratch/eagle/out/llama-3-1-70B-instruct-3000/state_10/
+Mode: chain - length 5
+total time in seconds: 5006.18532371521
+average accept length: 1.8791412115097046
+
+
+Base: meta-llama/Meta-Llama-3-70B-Instruct
+Drft: /home/hlee/scratch/eagle/out/llama-3-1-70B-instruct-3000/state_10/
+Mode: tree - EAGLE-1
+total time in seconds: 3879.5822291374207
+average accept length: 2.5460190773010254
 ```
 
 ## Train
