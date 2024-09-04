@@ -1,5 +1,7 @@
 Refer original [repo document](https://github.com/SafeAILab/EAGLE).
 
+Note: 
+@Hyunsung: Highly recommend to run those scripts on blacktip machine. some model paths or constants are bind to this machine's path and files.
 ## Contents
 - [Setup & Installation](#setup--installation)
 - [Average Acceptance Length](#average-acceptance-length) 
@@ -99,10 +101,28 @@ average accept length: 2.835796356201172
 ## Train
 
 ### Generate Train Data
+
 You can run the following command to generate the training data.
+
+#### 0. Prepare training data.
+```
+wget https://huggingface.co/datasets/Aeala/ShareGPT_Vicuna_unfiltered/resolve/main/ShareGPT_V4.3_unfiltered_cleaned_split.json
+```
+
+#### 1. Build training input (preprocessing training data)
+
+with training data, base model generates hidden state of the last layer and logits. 
+the hidden states of the last layer and logits are used later to train draft model.
+
 ```bash
 python -m eagle.ge_data.allocation --outdir [path of data]
 ```
+
+** Llama 3.1 8B
+
+
+
+python -m eagle.ge_data.allocation --outdir=
 ### Train the Auto-regression Head
 ```bash
 accelerate launch -m --mixed_precision=bf16 eagle.train.main --tmpdir [path of data]\
