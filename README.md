@@ -26,8 +26,6 @@ pip install -e .
 
 ### Llama-2-7B
 
-Run script `source run-llama-2.sh`
-
 ```
 BASELINE Llama-2
 total time in seconds: 1473.9602913856506
@@ -47,8 +45,7 @@ average accept length: 3.676884889602661
 
 ### Llama-3-8B
 
-Move fine tune to `models/llama-3-chat/state_20`
-And, run script `source run-llama-3.sh`
+Run script `source run-llama-3.sh`
 
 ```
 BASELINE Llama-3
@@ -81,8 +78,7 @@ average accept length: 3.082038164138794
 
 ### Llama-3.1-8B
 
-Move fine tune to `models/llama-3-1-chat-with-3-1-data/state_17`
-And, run script `source run-llama-3-1.sh`
+Run script `source run-llama-3-1.sh`
 
 ```
 Base: meta-llama/Meta-Llama-3-8B-Instruct
@@ -100,8 +96,7 @@ average accept length: 2.835796356201172
 
 ### Llama-3.1-70B
 
-Move fine tune `models/llama-3-1-70B-instruct-3000/state_10/`
-And, run script `source run-llama-3-1-70b.sh`
+Run script `source run-llama-3-1-70b.sh`
 
 ```
 Base: meta-llama/Meta-Llama-3-70B-Instruct
