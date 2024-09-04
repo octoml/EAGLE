@@ -114,11 +114,19 @@ wget https://huggingface.co/datasets/Aeala/ShareGPT_Vicuna_unfiltered/resolve/ma
 with training data, base model generates hidden state of the last layer and logits. 
 the hidden states of the last layer and logits are used later to train draft model.
 
-```bash
-python -m eagle.ge_data.allocation --outdir [path of data]
+
+**Llama 3.1 8B**
+```
+/opt/bin/cuda-reserve.py --num-gpus 4 python -m eagle.ge_data.allocation --outdir ../../eagle/tr-data-out/llama-3-1-chat-training-data --base-model-path /opt/models/Meta-Llama-3.1-8B-Instruct
 ```
 
-** Llama 3.1 8B
+**Llama 3.1 70B**
+
+Currently, 70B model cannot be loaded in a single gpu so accelerate is used to build dataset.
+
+```
+/opt/bin/cuda-reserve.py --num-gpus 6 accelerate launch --config_file=multi_gpu_acc.yaml  ge_data_all_llama3-1-70Bchat.py --start=0 --end=68000 --index=0 --gpu_index 0 --outdir ../../train-data-llama-3-1-70b/sharegpt_0_67999_mufp16
+```
 
 
 
