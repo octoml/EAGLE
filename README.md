@@ -1,9 +1,7 @@
 Refer original [repo document](https://github.com/SafeAILab/EAGLE).
 
 ## Contents
-
 - [Setup & Installation](#setup--installation)
-- [EAGLE Weights](#eagle-weights)
 - [Train](#train)
   - [Generate Train Data](#generate-train-data)
   - [Train the Auto-regression Head](#train-the-auto-regression-head)
@@ -24,6 +22,7 @@ only from the source available, this codebase has been modified.
 ```bash
 git clone https://github.com/octoml/EAGLE.git
 cd EAGLE
+git checkout EAGLE1
 pip install -e .
 ```
 
