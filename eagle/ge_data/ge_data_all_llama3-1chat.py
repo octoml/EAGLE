@@ -21,11 +21,6 @@ import json
 from fastchat.model.model_adapter import get_conversation_template
 
 bigname = args.base_model_path
-# bigname =
-# bigname="/opt/models/Meta-Llama-3.1-8B-Instruct"
-# bigname = "/home/lyh/weights/hf/llama/7B/"
-# smallname = "/home/lyh/weights/hf/llama/7B/"
-
 
 
 def longest_common_prefix(list1, list2):
@@ -49,8 +44,7 @@ def build_dataset_rank(
     ds = load_dataset('json', data_files="ShareGPT_V4.3_unfiltered_cleaned_split.json")
     ds = ds['train']
     ds = ds.shuffle(seed=42)
-    # ds1 = ds.select(range(args.start, args.end))
-    ds1 = ds.select(range(0, 1000))
+    ds1 = ds.select(range(args.start, args.end))
     original_columns1 = ds1.column_names
     num_proc = 4
 
@@ -91,11 +85,8 @@ def build_dataset_rank(
                 truncation=True,
             ).input_ids[0]
             loss_mask=torch.ones_like(input_ids)
-            #print(i)
 
             sep = conv.sep + conv.roles[1] + " "
-
-
 
             total_len = int(input_ids.ne(tokenizer.pad_token_id).sum())
 
@@ -196,7 +187,6 @@ def writedata(name,data_point):
 
 
 for id,data in enumerate(ds):
-    print(id)
     if id%100==0:
         print(id,end="\t")
     if id % 1000 == 0:
