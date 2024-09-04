@@ -4,14 +4,14 @@ Refer original [repo document](https://github.com/SafeAILab/EAGLE).
 
 - [Setup & Installation](#setup--installation)
 - [EAGLE Weights](#eagle-weights)
-- [Inference](#inference)
-  - [With UI](#with-ui)
-  - [With Code](#with-code)
-  - [Batch size > 1](#batch-size--1)
 - [Train](#train)
   - [Generate Train Data](#generate-train-data)
   - [Train the Auto-regression Head](#train-the-auto-regression-head)
   - [Inference on custom models](#inference-on-custom-models)
+- [Inference](#inference)
+  - [With UI](#with-ui)
+  - [With Code](#with-code)
+  - [Batch size > 1](#batch-size--1)
 - [Evaluation](#evaluation)
 - [With gpt-fast](#with-gpt-fast)
   - [Setup](#setup)
@@ -102,6 +102,71 @@ Mode: tree - EAGLE-1
 total time in seconds: 1049.5087773799896
 average accept length: 2.835796356201172
 ```
+
+## Train
+
+### Generate Train Data
+You can run the following command to generate the training data.
+```bash
+python -m eagle.ge_data.allocation --outdir [path of data]
+```
+### Train the Auto-regression Head
+```bash
+accelerate launch -m --mixed_precision=bf16 eagle.train.main --tmpdir [path of data]\
+--cpdir [path of checkpoints] -- configpath [path of config file]
+```
+*eagle/train* provides examples of configuration files.
+
+### Inference on custom models
+
+If the original LLM structure differs from LLaMA and Mixtral, you can utilize EAGLE in two ways.
+
+#### 1. Using the generic modeling_eagle.py
+
+This approach directly encapsulates the native Transformers LLM. Here is an example. **Note: transformers version should be higher than 4.36.**
+
+```python
+from eagle.modeling_eagle import EAGLE
+from transformers import AutoModelForCausalLM,AutoTokenizer
+
+tokenizer=AutoTokenizer.from_pretrained(base_model_path)
+model=AutoModelForCausalLM.from_pretrained("base_model_path",torch_dtype=torch.float16,device_map="auto",)
+# for bs>1, the padding side should be right
+if bs>1:
+    tokenizer.padding_side = "left"
+    tokenizer.pad_token = tokenizer.eos_token
+    model.config.pad_token_id = model.config.eos_token_id
+
+text=prompt1
+# text=[prompt1,prompt2]
+inputs = tokenizer(text, return_tensors="pt",padding=True)
+
+eagle=EAGLE(model,eagle_path)
+outs=eagle.generate(**inputs, max_new_tokens=200,temperature=0.0)
+output=tokenizer.decode(outs)
+# output=tokenizer.batch_decode(outs)
+```
+
+#### 2. Modifying the code of the model
+
+Copy the modeling_basemodelname.py from the Transformers library and proceed to make modifications to leverage the pre-allocated kv_cache for enhanced speed in the base model. You can refer to model/modeling_llama_kv.py for guidance, where places that require modifications are annotated with # [MODIFIED]. These modifications are minimal.
+
+
+## Evaluation
+You can test the speed of EAGLE on MT-bench using the following command.
+```bash
+python -m eagle.evaluation.gen_ea_answer_vicuna(or gen_ea_answer_vicuna_llama2chat)\
+		 --ea-model-path [path of EAGLE weight]\ 
+		 --base-model-path [path of the original model]\
+```
+If you need specific acceleration ratios, you will also need to run the following command to get the speed of vanilla auto-regression.
+```bash
+python -m eagle.evaluation.gen_baseline_answer_vicuna\
+		(or gen_ea_answer_vicuna_llama2chat)\
+		 --ea-model-path [path of EAGLE weight]\ 
+		 --base-model-path [path of the original model]\
+```
+The above two commands will each generate a .jsonl file that records the generation results and wall time. Then, you can use evaluation/speed.py to calculate the ratio of speeds.
 
 ## Inference
 The inference code we provide automatically allocates model weights (loading a model across multiple GPUs), allowing you to run models that exceed the memory of a single GPU.
@@ -195,71 +260,6 @@ print(output)
 # vanilla auto-regression
 # output_ids, new_token, idx=model.naivegenerate(input_s.input_ids,input_s.attention_mask,temperature=0.0,max_new_tokens=512,top_k=15,log=True)
 ```
-
-## Train
-
-### Generate Train Data
-You can run the following command to generate the training data.
-```bash
-python -m eagle.ge_data.allocation --outdir [path of data]
-```
-### Train the Auto-regression Head
-```bash
-accelerate launch -m --mixed_precision=bf16 eagle.train.main --tmpdir [path of data]\
---cpdir [path of checkpoints] -- configpath [path of config file]
-```
-*eagle/train* provides examples of configuration files.
-
-### Inference on custom models
-
-If the original LLM structure differs from LLaMA and Mixtral, you can utilize EAGLE in two ways.
-
-#### 1. Using the generic modeling_eagle.py
-
-This approach directly encapsulates the native Transformers LLM. Here is an example. **Note: transformers version should be higher than 4.36.**
-
-```python
-from eagle.modeling_eagle import EAGLE
-from transformers import AutoModelForCausalLM,AutoTokenizer
-
-tokenizer=AutoTokenizer.from_pretrained(base_model_path)
-model=AutoModelForCausalLM.from_pretrained("base_model_path",torch_dtype=torch.float16,device_map="auto",)
-# for bs>1, the padding side should be right
-if bs>1:
-    tokenizer.padding_side = "left"
-    tokenizer.pad_token = tokenizer.eos_token
-    model.config.pad_token_id = model.config.eos_token_id
-
-text=prompt1
-# text=[prompt1,prompt2]
-inputs = tokenizer(text, return_tensors="pt",padding=True)
-
-eagle=EAGLE(model,eagle_path)
-outs=eagle.generate(**inputs, max_new_tokens=200,temperature=0.0)
-output=tokenizer.decode(outs)
-# output=tokenizer.batch_decode(outs)
-```
-
-#### 2. Modifying the code of the model
-
-Copy the modeling_basemodelname.py from the Transformers library and proceed to make modifications to leverage the pre-allocated kv_cache for enhanced speed in the base model. You can refer to model/modeling_llama_kv.py for guidance, where places that require modifications are annotated with # [MODIFIED]. These modifications are minimal.
-
-
-## Evaluation
-You can test the speed of EAGLE on MT-bench using the following command.
-```bash
-python -m eagle.evaluation.gen_ea_answer_vicuna(or gen_ea_answer_vicuna_llama2chat)\
-		 --ea-model-path [path of EAGLE weight]\ 
-		 --base-model-path [path of the original model]\
-```
-If you need specific acceleration ratios, you will also need to run the following command to get the speed of vanilla auto-regression.
-```bash
-python -m eagle.evaluation.gen_baseline_answer_vicuna\
-		(or gen_ea_answer_vicuna_llama2chat)\
-		 --ea-model-path [path of EAGLE weight]\ 
-		 --base-model-path [path of the original model]\
-```
-The above two commands will each generate a .jsonl file that records the generation results and wall time. Then, you can use evaluation/speed.py to calculate the ratio of speeds.
 
 ## With gpt-fast
 
