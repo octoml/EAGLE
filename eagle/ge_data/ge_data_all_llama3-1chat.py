@@ -7,10 +7,11 @@ parser.add_argument('--end', type=int, default=100)
 parser.add_argument('--index', type=int, default=1)
 parser.add_argument('--gpu_index', type=int, nargs='+', default=[0])
 parser.add_argument('--outdir', type=str, default='outdir0')
+parser.add_argument('--base-model-path', type=str, default="/opt/models/Meta-Llama-3.1-8B-Instruct")
 args = parser.parse_args()
 import os
 
-os.environ["CUDA_VISIBLE_DEVICES"] = str(args.gpu_index)[1:-1]
+# os.environ["CUDA_VISIBLE_DEVICES"] = str(args.gpu_index)[1:-1]
 import torch
 import torch.nn.functional as F
 from tqdm import tqdm
@@ -19,10 +20,7 @@ from datasets import load_dataset
 import json
 from fastchat.model.model_adapter import get_conversation_template
 
-bigname="meta-llama/Meta-Llama-3.1-8B"
-# bigname = "/home/lyh/weights/hf/llama/7B/"
-# smallname = "/home/lyh/weights/hf/llama/7B/"
-
+bigname = args.base_model_path
 
 
 def longest_common_prefix(list1, list2):
@@ -47,11 +45,7 @@ def build_dataset_rank(
     ds = ds['train']
     ds = ds.shuffle(seed=42)
     ds1 = ds.select(range(args.start, args.end))
-    # ds1 = ds.select(range(100,200))
-    # dst=ds.select(range(200,300))
-    # ds2=ds.select(range(300,len(ds)))
     original_columns1 = ds1.column_names
-    # original_columns2 = ds2.column_names
     num_proc = 4
 
     def preprocess_function(examples):
@@ -91,11 +85,8 @@ def build_dataset_rank(
                 truncation=True,
             ).input_ids[0]
             loss_mask=torch.ones_like(input_ids)
-            #print(i)
 
             sep = conv.sep + conv.roles[1] + " "
-
-
 
             total_len = int(input_ids.ne(tokenizer.pad_token_id).sum())
 
@@ -157,25 +148,18 @@ def build_dataset_rank(
 bigtokenizer = AutoTokenizer.from_pretrained(bigname,use_fast=False)
 ds = build_dataset_rank(bigtokenizer)
 print(ds)
-# quantization_config = BitsAndBytesConfig(
-#         load_in_4bit=True,
-#         bnb_4bit_compute_dtype=torch.bfloat16,
-#         bnb_4bit_use_double_quant=True,
-#         bnb_4bit_quant_type="nf4",
-#     )
-# bigmodel = AutoModelForCausalLM.from_pretrained(bigname, load_in_4bit=True, device_map={"": 0}, )
+
 # smallmodel = AutoModelForCausalLM.from_pretrained(smallname, load_in_4bit=True, device_map={"": 1}, )
-bigmodel = AutoModelForCausalLM.from_pretrained(bigname,  device_map="auto",torch_dtype=torch.float16)
+bigmodel = AutoModelForCausalLM.from_pretrained(bigname, torch_dtype=torch.float16)
+
+# bigmodel = AutoModelForCausalLM.from_pretrained(bigname)
+
 #bigmodel = AutoModelForCausalLM.from_pretrained(bigname,  device_map="auto",load_in_8bit=True)
 bigmodel.eval()
+from accelerate import Accelerator
+accelerator = Accelerator()
 
-
-
-
-
-
-
-
+bigmodel = accelerator.prepare(bigmodel)
 
 
 
@@ -208,4 +192,6 @@ for id,data in enumerate(ds):
     if id % 1000 == 0:
         print("")
     outdata = ge(data)
+    del data
     writedata(outdir,outdata)
+    del outdata

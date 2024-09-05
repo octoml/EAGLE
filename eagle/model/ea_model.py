@@ -17,6 +17,7 @@ from .cnets import Model
 from .configs import EConfig
 from huggingface_hub import hf_hub_download
 
+from safetensors.torch import load_file as load_safetensors
 
 
 
@@ -82,6 +83,7 @@ class EaModel(nn.Module):
             **kwargs,
     ):
         #assert Type=="LLaMA" or "Mixtral"
+        print("base_model_path", base_model_path)
         Type=AutoConfig.from_pretrained(base_model_path).architectures[0]
         if Type=='LlamaForCausalLM':
             base_model = KVLlamaForCausalLM.from_pretrained(
@@ -100,11 +102,15 @@ class EaModel(nn.Module):
             base_model_path,
             configpath
         )
-        load_model_path=os.path.join(ea_model_path, "pytorch_model.bin")
-        if not os.path.exists(load_model_path):
-            load_model_path=hf_hub_download(ea_model_path, "pytorch_model.bin")
-        ea_layer_state_dict = torch.load(load_model_path,
-                                         map_location=base_model.device)
+        safetensors_model_path = os.path.join(ea_model_path, "model.safetensors")
+        pt_model_path = os.path.join(ea_model_path, "pytorch_model.bin")
+        if os.path.exists(safetensors_model_path):
+            ea_layer_state_dict = load_safetensors(safetensors_model_path)
+        elif os.path.exists(pt_model_path):
+            ea_layer_state_dict = torch.load(safetensors_model_path,
+                                             map_location=base_model.device)
+        else:
+            raise FileNotFoundError("Model Not Found")
         model.ea_layer.load_state_dict(ea_layer_state_dict, strict=True)
 
         return model
