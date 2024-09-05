@@ -87,13 +87,13 @@ average accept length: 3.082038164138794
 Run script `source run-llama-3-1.sh 8B`
 
 ```
-Base: meta-llama/Meta-Llama-3-8B-Instruct
+Base: meta-llama/Meta-Llama-3.1-8B-Instruct
 Drft: octoai/EAGLE-LLaMA3.1-Instruct-8B
 Mode: chain - length 5
 total time in seconds: 1420.5183284282684
 average accept length: 1.988234519958496
 
-Base: meta-llama/Meta-Llama-3-8B-Instruct
+Base: meta-llama/Meta-Llama-3.1-8B-Instruct
 Drft: octoai/EAGLE-LLaMA3.1-Instruct-8B
 Mode: tree - EAGLE-1
 total time in seconds: 1049.5087773799896
@@ -105,14 +105,14 @@ average accept length: 2.835796356201172
 Run script `source run-llama-3-1.sh 70B`
 
 ```
-Base: meta-llama/Meta-Llama-3-70B-Instruct
+Base: meta-llama/Meta-Llama-3.1-70B-Instruct
 Drft: octoai/EAGLE-LLaMA3.1-Instruct-70B
 Mode: chain - length 5
 total time in seconds: 5006.18532371521
 average accept length: 1.8791412115097046
 
 
-Base: meta-llama/Meta-Llama-3-70B-Instruct
+Base: meta-llama/Meta-Llama-3.1-70B-Instruct
 Drft: octoai/EAGLE-LLaMA3.1-Instruct-70B
 Mode: tree - EAGLE-1
 total time in seconds: 3879.5822291374207
