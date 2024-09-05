@@ -56,7 +56,7 @@ for i in range(num_p):
     gpu_index = gpus[i]
     gpu_index_str = ' '.join(map(str, gpu_index))
     # gpu_index_str='['+gpu_index_str+']'
-    command = "python ge_data_all_llama3-1chat.py --start={} --end={} --index={} --gpu_index {} --outdir {} --base-model-path".format(
+    command = "python ge_data_all_llama3-1chat.py --start={} --end={} --index={} --gpu_index {} --outdir {} --base-model-path {}".format(
         start, end, index, gpu_index_str, outdir, args.base_model_path)
     commands.append(command)
 # run_command(commands[0])

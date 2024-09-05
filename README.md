@@ -26,8 +26,11 @@ pip install -e .
 
 ### Llama-2-7B
 
+llama-2 model supported, but not in active development on EAGLE1 branch
+llama-2 model execution data:
+
 ```
-BASELINE Llama-2
+BASELINE meta-llama/Llama-2-7b-chat-hf
 total time in seconds: 1473.9602913856506
 
 Base: meta-llama/Llama-2-7b-chat-hf
@@ -45,10 +48,11 @@ average accept length: 3.676884889602661
 
 ### Llama-3-8B
 
-Run script `source run-llama-3.sh`
+llama-3 model no longer supported on EAGLE1 branch
+llama-3 model execution data:
 
 ```
-BASELINE Llama-3
+BASELINE meta-llama/Meta-Llama-3-8B-Instruct
 total time in seconds: 980.8523852825165
 
 Base: meta-llama/Meta-Llama-3-8B-Instruct
@@ -58,19 +62,19 @@ total time in seconds: 653.6523582935333
 average accept length: 1.9890466928482056
 
 Base: meta-llama/Meta-Llama-3-8B-Instruct
-Drft: Hyunsung llama-3-chat fine tune
-Mode: chain - length 5
-total time in seconds: 621.6361937522888
-average accept length: 2.1005005836486816
-
-Base: meta-llama/Meta-Llama-3-8B-Instruct
 Drft: yuhuili/EAGLE-LLaMA3-Instruct-8B
 Mode: tree - EAGLE-1
 total time in seconds: 453.83766627311707
 average accept length: 2.7998197078704834
 
 Base: meta-llama/Meta-Llama-3-8B-Instruct
-Drft: Hyunsung llama-3-chat fine tune
+Drft: octoai/EAGLE-LLaMA3-Instruct-8B
+Mode: chain - length 5
+total time in seconds: 621.6361937522888
+average accept length: 2.1005005836486816
+
+Base: meta-llama/Meta-Llama-3-8B-Instruct
+Drft: octoai/EAGLE-LLaMA3-Instruct-8B
 Mode: tree - EAGLE-1
 total time in seconds: 422.923953294754
 average accept length: 3.082038164138794
@@ -78,17 +82,17 @@ average accept length: 3.082038164138794
 
 ### Llama-3.1-8B
 
-Run script `source run-llama-3-1.sh`
+Run script `source run-llama-3-1.sh 8B`
 
 ```
 Base: meta-llama/Meta-Llama-3-8B-Instruct
-Drft: /home/hlee/scratch/eagle/out/llama-3-1-chat-with-3-1-data/state_17/
+Drft: octoai/EAGLE-LLaMA3.1-Instruct-8B
 Mode: chain - length 5
 total time in seconds: 1420.5183284282684
 average accept length: 1.988234519958496
 
 Base: meta-llama/Meta-Llama-3-8B-Instruct
-Drft: /home/hlee/scratch/eagle/out/llama-3-1-chat-with-3-1-data/state_17/
+Drft: octoai/EAGLE-LLaMA3.1-Instruct-8B
 Mode: tree - EAGLE-1
 total time in seconds: 1049.5087773799896
 average accept length: 2.835796356201172
@@ -96,18 +100,18 @@ average accept length: 2.835796356201172
 
 ### Llama-3.1-70B
 
-Run script `source run-llama-3-1-70b.sh`
+Run script `source run-llama-3-1.sh 70B`
 
 ```
 Base: meta-llama/Meta-Llama-3-70B-Instruct
-Drft: /home/hlee/scratch/eagle/out/llama-3-1-70B-instruct-3000/state_10/
+Drft: octoai/EAGLE-LLaMA3.1-Instruct-70B
 Mode: chain - length 5
 total time in seconds: 5006.18532371521
 average accept length: 1.8791412115097046
 
 
 Base: meta-llama/Meta-Llama-3-70B-Instruct
-Drft: /home/hlee/scratch/eagle/out/llama-3-1-70B-instruct-3000/state_10/
+Drft: octoai/EAGLE-LLaMA3.1-Instruct-70B
 Mode: tree - EAGLE-1
 total time in seconds: 3879.5822291374207
 average accept length: 2.5460190773010254

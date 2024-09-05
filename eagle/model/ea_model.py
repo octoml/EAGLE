@@ -110,7 +110,9 @@ class EaModel(nn.Module):
             ea_layer_state_dict = torch.load(safetensors_model_path,
                                              map_location=base_model.device)
         else:
-            raise FileNotFoundError("Model Not Found")
+            load_model_path=hf_hub_download(ea_model_path, "pytorch_model.bin")
+            ea_layer_state_dict = torch.load(load_model_path,
+                                             map_location=base_model.device)
         model.ea_layer.load_state_dict(ea_layer_state_dict, strict=True)
 
         return model
