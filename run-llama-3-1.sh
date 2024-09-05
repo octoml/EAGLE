@@ -5,8 +5,9 @@ elif [[ $1 == "70B" ]]; then
   export BASE_MODEL_PATH="meta-llama/Meta-Llama-3.1-70B-Instruct"
   export DRAFT_MODEL_PATH="octoai/EAGLE-LLaMA3.1-Instruct-70B"
 else
-  echo "invalid model size"
-  exit 1
+  # user provided paths
+  export BASE_MODEL_PATH=$1
+  export DRAFT_MODEL_PATH=$2
 fi
 
 #echo "BASELINE $BASE_MODEL_PATH"

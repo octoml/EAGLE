@@ -27,6 +27,7 @@ pip install -e .
 ### Llama-2-7B
 
 llama-2 model supported, but not in active development on EAGLE1 branch
+
 llama-2 model execution data:
 
 ```
@@ -49,6 +50,7 @@ average accept length: 3.676884889602661
 ### Llama-3-8B
 
 llama-3 model no longer supported on EAGLE1 branch
+
 llama-3 model execution data:
 
 ```
