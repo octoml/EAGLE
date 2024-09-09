@@ -84,6 +84,8 @@ average accept length: 3.082038164138794
 
 ### Llama-3.1-8B
 
+[Draft Model in HF repo](https://huggingface.co/octoai/EAGLE-LLaMA3.1-Instruct-8B)
+
 Run script `source run-llama-3-1.sh 8B`
 
 ```
@@ -101,6 +103,8 @@ average accept length: 2.835796356201172
 ```
 
 ### Llama-3.1-70B
+
+[Draft Model in HF repo](https://huggingface.co/octoai/EAGLE-LLaMA3.1-Instruct-70B)
 
 Run script `source run-llama-3-1.sh 70B`
 
